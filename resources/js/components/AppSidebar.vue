@@ -1,8 +1,24 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid } from '@lucide/vue';
+import {
+    Boxes,
+    Building2,
+    ClipboardCheck,
+    FileBarChart,
+    Landmark,
+    LayoutGrid,
+    MapPin,
+    Package,
+    QrCode,
+    ScanLine,
+    Settings,
+    Shapes,
+    ShieldCheck,
+    Tag,
+    Users,
+    UsersRound,
+} from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
-import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import {
@@ -15,26 +31,54 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
+import type { NavGroup } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const navGroups: NavGroup[] = [
     {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-];
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: FolderGit2,
+        title: 'Inicio',
+        items: [{ title: 'Panel', href: dashboard(), icon: LayoutGrid }],
     },
     {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
+        title: 'Inventario',
+        items: [
+            { title: 'Activos', href: '/activos', icon: Boxes },
+            { title: 'Nuevo activo', href: '/activos/crear', icon: Tag },
+            { title: 'Piezas y refacciones', href: '/piezas', icon: Package },
+            { title: 'Préstamos', href: '/prestamos', icon: UsersRound },
+            { title: 'Etiquetas QR', href: '/etiquetas', icon: QrCode },
+        ],
+    },
+    {
+        title: 'Organización',
+        items: [
+            { title: 'Empresas', href: '/empresas', icon: Landmark },
+            { title: 'Sucursales', href: '/sucursales', icon: Building2 },
+            { title: 'Áreas / departamentos', href: '/areas', icon: MapPin },
+            { title: 'Responsables', href: '/responsables', icon: Users },
+        ],
+    },
+    {
+        title: 'Catálogos',
+        items: [
+            { title: 'Tipos de activo', href: '/tipos-activo', icon: Shapes },
+            { title: 'Marcas', href: '/marcas', icon: Tag },
+        ],
+    },
+    {
+        title: 'Control',
+        items: [
+            { title: 'Auditorías', href: '/auditorias', icon: ClipboardCheck },
+            { title: 'Escanear QR', href: '/escanear', icon: ScanLine },
+            { title: 'Reportes', href: '/reportes', icon: FileBarChart },
+        ],
+    },
+    {
+        title: 'Administración',
+        items: [
+            { title: 'Usuarios', href: '/usuarios', icon: ShieldCheck },
+            { title: 'Roles y permisos', href: '/roles', icon: Users },
+            { title: 'Configuración', href: '/configuracion', icon: Settings },
+        ],
     },
 ];
 </script>
@@ -54,11 +98,15 @@ const footerNavItems: NavItem[] = [
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="mainNavItems" />
+            <NavMain
+                v-for="group in navGroups"
+                :key="group.title"
+                :title="group.title"
+                :items="group.items"
+            />
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>
     </Sidebar>

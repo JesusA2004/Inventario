@@ -3,23 +3,34 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            RolesAndPermissionsSeeder::class,
+            AssetCatalogSeeder::class,
         ]);
+
+        if (! User::query()->where('email', 'jesusarizmendimaya@gmail.com')->exists()) {
+            $password = Str::password(14);
+
+            $admin = User::factory()->create([
+                'name' => 'Jesús Arizmendi',
+                'email' => 'jesusarizmendimaya@gmail.com',
+                'password' => $password,
+                'email_verified_at' => now(),
+            ]);
+
+            $admin->assignRole('superadministrador');
+
+            $this->command?->warn("Usuario administrador creado -> email: jesusarizmendimaya@gmail.com | contraseña temporal: {$password}");
+        }
     }
 }
