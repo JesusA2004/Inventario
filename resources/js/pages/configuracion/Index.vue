@@ -54,7 +54,7 @@ function submit() {
 <template>
     <Head title="Configuración" />
 
-    <div class="mx-auto flex max-w-2xl flex-col gap-6">
+    <div class="mx-auto flex max-w-3xl flex-col gap-6">
         <PageHeader title="Configuración" description="Preferencias generales del sistema" />
 
         <form class="space-y-6" @submit.prevent="submit">

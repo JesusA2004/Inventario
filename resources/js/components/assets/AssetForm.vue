@@ -263,7 +263,7 @@ function onInvoiceFileChange(event: Event) {
             <h2 class="text-sm font-semibold text-foreground">
                 Identificación
             </h2>
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div class="grid gap-2">
                     <Label>Tipo de activo</Label>
                     <div class="flex gap-2">

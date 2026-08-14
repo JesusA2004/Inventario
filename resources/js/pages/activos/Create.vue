@@ -64,7 +64,7 @@ function submit(createAnother: boolean) {
 <template>
     <Head title="Nuevo activo" />
 
-    <div class="mx-auto flex max-w-4xl flex-col gap-6 pb-24">
+    <div class="mx-auto flex max-w-6xl flex-col gap-6 pb-24">
         <PageHeader
             title="Nuevo activo"
             description="Registra un dispositivo en el inventario"

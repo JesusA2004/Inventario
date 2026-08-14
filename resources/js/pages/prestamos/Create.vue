@@ -96,7 +96,7 @@ return;
 <template>
     <Head title="Nuevo préstamo" />
 
-    <div class="mx-auto flex max-w-2xl flex-col gap-6">
+    <div class="mx-auto flex max-w-3xl flex-col gap-6">
         <PageHeader title="Nuevo préstamo" description="Registra la salida temporal de un equipo" />
 
         <div class="space-y-2">

@@ -121,7 +121,7 @@ function destroyFile() {
 <template>
     <Head :title="`Editar ${asset.internal_code}`" />
 
-    <div class="mx-auto flex max-w-4xl flex-col gap-6 pb-24">
+    <div class="mx-auto flex max-w-6xl flex-col gap-6 pb-24">
         <PageHeader
             :title="`Editar ${asset.internal_code}`"
             :description="asset.name"

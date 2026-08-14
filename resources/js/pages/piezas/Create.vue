@@ -48,7 +48,7 @@ function submit() {
 <template>
     <Head title="Nueva pieza" />
 
-    <div class="mx-auto flex max-w-3xl flex-col gap-6 pb-24">
+    <div class="mx-auto flex max-w-4xl flex-col gap-6 pb-24">
         <PageHeader title="Nueva pieza" description="Registra una pieza o refacción en el inventario" />
         <PartForm :form="form" :form-options="formOptions" />
     </div>
