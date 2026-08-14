@@ -9,7 +9,6 @@ import {
     LayoutGrid,
     MapPin,
     Package,
-    QrCode,
     ScanLine,
     Settings,
     Shapes,
@@ -42,10 +41,8 @@ const navGroups: NavGroup[] = [
         title: 'Inventario',
         items: [
             { title: 'Activos', href: '/activos', icon: Boxes },
-            { title: 'Nuevo activo', href: '/activos/crear', icon: Tag },
             { title: 'Piezas y refacciones', href: '/piezas', icon: Package },
             { title: 'Préstamos', href: '/prestamos', icon: UsersRound },
-            { title: 'Etiquetas QR', href: '/etiquetas', icon: QrCode },
         ],
     },
     {

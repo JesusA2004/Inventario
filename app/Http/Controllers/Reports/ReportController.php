@@ -20,10 +20,13 @@ use App\Models\Loan;
 use App\Models\Part;
 use App\Models\ResponsiblePerson;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -140,24 +143,121 @@ class ReportController extends Controller implements HasMiddleware
         return implode(' · ', $parts);
     }
 
-    private function inventoryQuery(Request $request)
+    /**
+     * Filtros compartidos por la vista en tiempo real, el Excel y el PDF del
+     * reporte de inventario, para garantizar que las tres salidas reflejen
+     * exactamente el mismo conjunto de datos. Las columnas van calificadas
+     * con "assets." porque branches/departments también tienen company_id,
+     * y los métodos que agregan (groupBy + join) generarían una columna
+     * ambigua si no se calificaran aquí.
+     *
+     * @return Builder<Asset>
+     */
+    private function inventoryBaseQuery(Request $request): Builder
     {
         return Asset::query()
+            ->when($request->integer('company_id'), fn ($q, $v) => $q->where('assets.company_id', $v))
+            ->when($request->integer('branch_id'), fn ($q, $v) => $q->where('assets.branch_id', $v))
+            ->when($request->integer('department_id'), fn ($q, $v) => $q->where('assets.department_id', $v))
+            ->when($request->integer('responsible_id'), fn ($q, $v) => $q->where('assets.current_responsible_id', $v))
+            ->when($request->integer('asset_type_id'), fn ($q, $v) => $q->where('assets.asset_type_id', $v))
+            ->when($request->integer('brand_id'), fn ($q, $v) => $q->where('assets.brand_id', $v))
+            ->when($request->string('status')->toString(), fn ($q, $v) => $q->where('assets.status', $v))
+            ->when($request->filled('in_inventory'), fn ($q) => $q->where('assets.in_inventory', $request->boolean('in_inventory')))
+            ->when($request->date('from'), fn ($q, $v) => $q->whereDate('assets.acquired_at', '>=', $v))
+            ->when($request->date('to'), fn ($q, $v) => $q->whereDate('assets.acquired_at', '<=', $v));
+    }
+
+    /**
+     * @return Builder<Asset>
+     */
+    private function inventoryQuery(Request $request): Builder
+    {
+        return $this->inventoryBaseQuery($request)
             ->with(['company', 'branch', 'department', 'brand', 'assetType', 'currentResponsible'])
-            ->when($request->integer('company_id'), fn ($q, $v) => $q->where('company_id', $v))
-            ->when($request->integer('branch_id'), fn ($q, $v) => $q->where('branch_id', $v))
-            ->when($request->integer('department_id'), fn ($q, $v) => $q->where('department_id', $v))
-            ->when($request->integer('responsible_id'), fn ($q, $v) => $q->where('current_responsible_id', $v))
-            ->when($request->integer('asset_type_id'), fn ($q, $v) => $q->where('asset_type_id', $v))
-            ->when($request->integer('brand_id'), fn ($q, $v) => $q->where('brand_id', $v))
-            ->when($request->string('status')->toString(), fn ($q, $v) => $q->where('status', $v))
-            ->when($request->filled('in_inventory'), fn ($q) => $q->where('in_inventory', $request->boolean('in_inventory')))
-            ->when($request->date('from'), fn ($q, $v) => $q->whereDate('acquired_at', '>=', $v))
-            ->when($request->date('to'), fn ($q, $v) => $q->whereDate('acquired_at', '<=', $v))
             ->orderBy('internal_code');
     }
 
-    private function decommissionedQuery(Request $request)
+    /**
+     * Datos en vivo para el panel de "Inventario en tiempo real": el mismo
+     * conjunto filtrado que consumen excel()/pdf(), agregado para las
+     * gráficas y con una muestra de filas para la vista previa.
+     */
+    public function inventoryData(Request $request): JsonResponse
+    {
+        $total = $this->inventoryBaseQuery($request)->count();
+
+        $rows = $this->inventoryBaseQuery($request)
+            ->with(['company:id,name', 'branch:id,name', 'department:id,name', 'brand:id,name', 'assetType:id,name', 'currentResponsible:id,full_name'])
+            ->orderBy('internal_code')
+            ->limit(30)
+            ->get()
+            ->map(function (Asset $asset): array {
+                return [
+                    'id' => $asset->id,
+                    'public_id' => $asset->public_id,
+                    'internal_code' => $asset->internal_code,
+                    'name' => $asset->name,
+                    'company' => $asset->company?->name,
+                    'branch' => $asset->branch?->name,
+                    'department' => $asset->department?->name,
+                    'brand' => $asset->brand?->name,
+                    'asset_type' => $asset->assetType?->name,
+                    'responsible' => $asset->currentResponsible?->full_name,
+                    'status' => ['label' => $asset->status->label(), 'color' => $asset->status->color()],
+                    'in_inventory' => $asset->in_inventory,
+                ];
+            });
+
+        $byStatus = $this->inventoryBaseQuery($request)
+            ->select('status', DB::raw('count(*) as total'))
+            ->groupBy('status')
+            ->get()
+            ->map(function (Asset $row): array {
+                $status = $row->status instanceof AssetStatus ? $row->status : AssetStatus::tryFrom((string) $row->status);
+
+                return ['label' => $status?->label() ?? (string) $row->status, 'color' => $status?->color() ?? 'gray', 'total' => (int) $row->getAttribute('total')];
+            });
+
+        $byBranch = $this->inventoryBaseQuery($request)
+            ->join('branches', 'branches.id', '=', 'assets.branch_id')
+            ->select('branches.name', DB::raw('count(*) as total'))
+            ->groupBy('branches.name')
+            ->orderByDesc('total')
+            ->limit(8)
+            ->get();
+
+        $byType = $this->inventoryBaseQuery($request)
+            ->join('asset_types', 'asset_types.id', '=', 'assets.asset_type_id')
+            ->select('asset_types.name', DB::raw('count(*) as total'))
+            ->groupBy('asset_types.name')
+            ->orderByDesc('total')
+            ->limit(8)
+            ->get();
+
+        $byCompany = $this->inventoryBaseQuery($request)
+            ->join('companies', 'companies.id', '=', 'assets.company_id')
+            ->select('companies.name', DB::raw('count(*) as total'))
+            ->groupBy('companies.name')
+            ->orderByDesc('total')
+            ->limit(8)
+            ->get();
+
+        return response()->json([
+            'total' => $total,
+            'inInventory' => $this->inventoryBaseQuery($request)->where('assets.in_inventory', true)->count(),
+            'rows' => $rows,
+            'byStatus' => $byStatus,
+            'byBranch' => $byBranch,
+            'byType' => $byType,
+            'byCompany' => $byCompany,
+        ]);
+    }
+
+    /**
+     * @return Builder<Asset>
+     */
+    private function decommissionedQuery(Request $request): Builder
     {
         return Asset::query()
             ->with(['company', 'branch'])
@@ -168,7 +268,10 @@ class ReportController extends Controller implements HasMiddleware
             ->orderByDesc('decommissioned_at');
     }
 
-    private function loansQuery(Request $request)
+    /**
+     * @return Builder<Loan>
+     */
+    private function loansQuery(Request $request): Builder
     {
         return Loan::query()
             ->with(['asset', 'company', 'assignedTo', 'deliveredBy', 'receivedBy'])
@@ -178,7 +281,10 @@ class ReportController extends Controller implements HasMiddleware
             ->orderByDesc('loan_date');
     }
 
-    private function partsQuery(Request $request)
+    /**
+     * @return Builder<Part>
+     */
+    private function partsQuery(Request $request): Builder
     {
         return Part::query()
             ->with(['company', 'brand', 'relatedAsset'])
@@ -186,7 +292,10 @@ class ReportController extends Controller implements HasMiddleware
             ->orderBy('internal_code');
     }
 
-    private function auditsQuery(Request $request)
+    /**
+     * @return Builder<Audit>
+     */
+    private function auditsQuery(Request $request): Builder
     {
         return Audit::query()
             ->with(['company', 'branch', 'items'])

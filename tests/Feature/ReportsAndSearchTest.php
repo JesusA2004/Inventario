@@ -58,6 +58,32 @@ test('the inventory report can be filtered by branch, type, brand and status', f
     );
 });
 
+test('the live inventory data endpoint respects filters and matches the export', function () {
+    Excel::fake();
+
+    $otherBranch = Branch::create(['company_id' => $this->company->id, 'name' => 'Sucursal Norte', 'code' => 'NORTE', 'active' => true]);
+    Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $otherBranch->id,
+        'asset_type_id' => $this->assetType->id,
+        'internal_code' => 'CML-LAP-999',
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/reportes/inventario/datos?branch_id='.$this->branch->id);
+
+    $response->assertOk();
+    $response->assertJson(['total' => 1]);
+    expect(collect($response->json('rows'))->pluck('internal_code')->toArray())->toBe([$this->asset->internal_code]);
+    expect($response->json('byBranch'))->toHaveCount(1);
+
+    $this->actingAs($this->user)->get('/reportes/inventario/excel?branch_id='.$this->branch->id)->assertOk();
+
+    Excel::assertDownloaded(
+        'reporte-inventario-'.now()->format('Y-m-d').'.xlsx',
+        fn (AssetsExport $export) => $export->collection()->pluck('internal_code')->toArray() === [$this->asset->internal_code],
+    );
+});
+
 test('the global search endpoint finds assets by internal code', function () {
     $response = $this->actingAs($this->user)->get('/buscar?q=CML-LAP-777');
 
