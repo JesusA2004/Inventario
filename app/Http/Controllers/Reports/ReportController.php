@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Reports;
 
+use App\Enums\AssetStatus;
 use App\Exports\AssetsExport;
 use App\Exports\AuditsExport;
 use App\Exports\DecommissionedAssetsExport;
@@ -9,10 +10,15 @@ use App\Exports\LoansExport;
 use App\Exports\PartsExport;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
+use App\Models\AssetType;
 use App\Models\Audit;
+use App\Models\Branch;
+use App\Models\Brand;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\Loan;
 use App\Models\Part;
+use App\Models\ResponsiblePerson;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -45,6 +51,14 @@ class ReportController extends Controller implements HasMiddleware
         return Inertia::render('reportes/Index', [
             'companies' => Company::query()->orderBy('name')->get(['id', 'name']),
             'reports' => collect(self::TITLES)->map(fn ($title, $key) => ['key' => $key, 'title' => $title])->values(),
+            'inventoryFilterOptions' => [
+                'branches' => Branch::query()->orderBy('name')->get(['id', 'name', 'company_id']),
+                'departments' => Department::query()->orderBy('name')->get(['id', 'name', 'company_id']),
+                'assetTypes' => AssetType::query()->orderBy('name')->get(['id', 'name']),
+                'brands' => Brand::query()->orderBy('name')->get(['id', 'name']),
+                'responsiblePeople' => ResponsiblePerson::query()->orderBy('full_name')->get(['id', 'full_name']),
+                'statuses' => AssetStatus::options(),
+            ],
         ]);
     }
 
@@ -101,6 +115,27 @@ class ReportController extends Controller implements HasMiddleware
         if ($request->filled('to')) {
             $parts[] = 'Hasta: '.$request->string('to');
         }
+        if ($request->filled('branch_id')) {
+            $parts[] = 'Sucursal: '.(Branch::find($request->integer('branch_id'))?->name ?? '—');
+        }
+        if ($request->filled('department_id')) {
+            $parts[] = 'Área: '.(Department::find($request->integer('department_id'))?->name ?? '—');
+        }
+        if ($request->filled('responsible_id')) {
+            $parts[] = 'Responsable: '.(ResponsiblePerson::find($request->integer('responsible_id'))?->full_name ?? '—');
+        }
+        if ($request->filled('asset_type_id')) {
+            $parts[] = 'Tipo: '.(AssetType::find($request->integer('asset_type_id'))?->name ?? '—');
+        }
+        if ($request->filled('brand_id')) {
+            $parts[] = 'Marca: '.(Brand::find($request->integer('brand_id'))?->name ?? '—');
+        }
+        if ($request->filled('status')) {
+            $parts[] = 'Estatus: '.(AssetStatus::tryFrom($request->string('status')->toString())?->label() ?? '—');
+        }
+        if ($request->filled('in_inventory')) {
+            $parts[] = $request->boolean('in_inventory') ? 'Solo en inventario' : 'Solo dados de baja';
+        }
 
         return implode(' · ', $parts);
     }
@@ -110,6 +145,13 @@ class ReportController extends Controller implements HasMiddleware
         return Asset::query()
             ->with(['company', 'branch', 'department', 'brand', 'assetType', 'currentResponsible'])
             ->when($request->integer('company_id'), fn ($q, $v) => $q->where('company_id', $v))
+            ->when($request->integer('branch_id'), fn ($q, $v) => $q->where('branch_id', $v))
+            ->when($request->integer('department_id'), fn ($q, $v) => $q->where('department_id', $v))
+            ->when($request->integer('responsible_id'), fn ($q, $v) => $q->where('current_responsible_id', $v))
+            ->when($request->integer('asset_type_id'), fn ($q, $v) => $q->where('asset_type_id', $v))
+            ->when($request->integer('brand_id'), fn ($q, $v) => $q->where('brand_id', $v))
+            ->when($request->string('status')->toString(), fn ($q, $v) => $q->where('status', $v))
+            ->when($request->filled('in_inventory'), fn ($q) => $q->where('in_inventory', $request->boolean('in_inventory')))
             ->when($request->date('from'), fn ($q, $v) => $q->whereDate('acquired_at', '>=', $v))
             ->when($request->date('to'), fn ($q, $v) => $q->whereDate('acquired_at', '<=', $v))
             ->orderBy('internal_code');

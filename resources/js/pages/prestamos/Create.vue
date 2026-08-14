@@ -130,6 +130,7 @@ return;
                 </div>
                 <p v-if="searching" class="mt-1 text-xs text-muted-foreground">Buscando...</p>
             </div>
+            <InputError :message="form.errors.asset_id" />
         </div>
 
         <template v-if="selectedAsset">

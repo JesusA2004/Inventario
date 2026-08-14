@@ -1,11 +1,12 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/vue-starter-kit",
+    "name": "mr-lana/inventario",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Sistema de inventario de activos de TI para MR LANA.",
     "keywords": [
         "laravel",
-        "framework"
+        "inventario",
+        "activos"
     ],
     "license": "MIT",
     "require": {

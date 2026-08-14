@@ -17,6 +17,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -104,24 +106,41 @@ class LoanController extends Controller implements HasMiddleware
             'origin' => ['nullable', 'string', 'in:asset,index'],
         ]);
 
-        $asset = Asset::findOrFail($data['asset_id']);
+        $loan = DB::transaction(function () use ($data, $request) {
+            $asset = Asset::query()->whereKey($data['asset_id'])->lockForUpdate()->firstOrFail();
 
-        $loan = Loan::create([
-            'asset_id' => $asset->id,
-            'company_id' => $asset->company_id,
-            'assigned_to_responsible_id' => $data['assigned_to_responsible_id'] ?? null,
-            'delivered_by_responsible_id' => $data['delivered_by_responsible_id'] ?? null,
-            'received_by_responsible_id' => $data['received_by_responsible_id'] ?? null,
-            'reason' => $data['reason'] ?? null,
-            'loan_date' => $data['loan_date'],
-            'expected_return_date' => $data['expected_return_date'] ?? null,
-            'delivered_confirmed' => $data['delivered_confirmed'] ?? false,
-            'received_confirmed' => $data['received_confirmed'] ?? false,
-            'status' => LoanStatus::Prestado,
-            'created_by' => $request->user()->id,
-        ]);
+            $hasActiveLoan = Loan::query()
+                ->where('asset_id', $asset->id)
+                ->where('status', LoanStatus::Prestado)
+                ->exists();
 
-        $asset->update(['status' => AssetStatus::Activo]);
+            if ($hasActiveLoan) {
+                throw ValidationException::withMessages([
+                    'asset_id' => 'Este activo ya tiene un préstamo activo. Debe devolverse antes de registrar uno nuevo.',
+                ]);
+            }
+
+            $loan = Loan::create([
+                'asset_id' => $asset->id,
+                'company_id' => $asset->company_id,
+                'assigned_to_responsible_id' => $data['assigned_to_responsible_id'] ?? null,
+                'delivered_by_responsible_id' => $data['delivered_by_responsible_id'] ?? null,
+                'received_by_responsible_id' => $data['received_by_responsible_id'] ?? null,
+                'reason' => $data['reason'] ?? null,
+                'loan_date' => $data['loan_date'],
+                'expected_return_date' => $data['expected_return_date'] ?? null,
+                'delivered_confirmed' => $data['delivered_confirmed'] ?? false,
+                'received_confirmed' => $data['received_confirmed'] ?? false,
+                'status' => LoanStatus::Prestado,
+                'created_by' => $request->user()->id,
+            ]);
+
+            $asset->update(['status' => AssetStatus::Activo]);
+
+            return $loan;
+        });
+
+        $asset = Asset::query()->whereKey($data['asset_id'])->firstOrFail();
 
         $this->movements->log(
             $asset,
@@ -151,8 +170,10 @@ class LoanController extends Controller implements HasMiddleware
             'return_notes' => $data['return_notes'] ?? null,
         ]);
 
+        $asset = Asset::query()->whereKey($loan->asset_id)->firstOrFail();
+
         $this->movements->log(
-            $loan->asset,
+            $asset,
             MovementType::Devolucion,
             comment: 'Devolución registrada.'.(($data['return_notes'] ?? null) ? ' '.$data['return_notes'] : ''),
         );

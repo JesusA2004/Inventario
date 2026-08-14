@@ -61,6 +61,45 @@ test('a loan can be returned', function () {
     expect($this->asset->movements()->where('type', MovementType::Devolucion)->exists())->toBeTrue();
 });
 
+test('an asset cannot have two simultaneous active loans', function () {
+    $this->asset->loans()->create([
+        'company_id' => $this->company->id,
+        'assigned_to_responsible_id' => $this->responsible->id,
+        'loan_date' => now()->subDay(),
+        'status' => LoanStatus::Prestado,
+        'created_by' => $this->user->id,
+    ]);
+
+    $this->actingAs($this->user)->post('/prestamos', [
+        'asset_id' => $this->asset->id,
+        'assigned_to_responsible_id' => $this->responsible->id,
+        'loan_date' => now()->toDateString(),
+        'origin' => 'index',
+    ])->assertSessionHasErrors('asset_id');
+
+    expect($this->asset->loans()->where('status', LoanStatus::Prestado)->count())->toBe(1);
+});
+
+test('a new loan can be created after the previous one on the same asset is returned', function () {
+    $previous = $this->asset->loans()->create([
+        'company_id' => $this->company->id,
+        'loan_date' => now()->subDays(3),
+        'status' => LoanStatus::Devuelto,
+        'actual_return_date' => now()->subDay(),
+        'created_by' => $this->user->id,
+    ]);
+
+    $this->actingAs($this->user)->post('/prestamos', [
+        'asset_id' => $this->asset->id,
+        'assigned_to_responsible_id' => $this->responsible->id,
+        'loan_date' => now()->toDateString(),
+        'origin' => 'index',
+    ])->assertRedirect('/prestamos');
+
+    expect($this->asset->loans()->where('status', LoanStatus::Prestado)->count())->toBe(1);
+    expect($previous->fresh()->status)->toBe(LoanStatus::Devuelto);
+});
+
 test('an overdue loan is reported with the vencido status', function () {
     $loan = $this->asset->loans()->create([
         'company_id' => $this->company->id,

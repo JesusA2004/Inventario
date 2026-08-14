@@ -7,11 +7,20 @@ use App\Models\Asset;
 use App\Models\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ScannerController extends Controller
+class ScannerController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:ver-activos'),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $audit = null;

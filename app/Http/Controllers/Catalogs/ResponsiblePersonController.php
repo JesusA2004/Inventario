@@ -22,7 +22,7 @@ class ResponsiblePersonController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('permission:ver-catalogos', only: ['index']),
-            new Middleware('permission:gestionar-catalogos', except: ['index', 'store']),
+            new Middleware('permission:gestionar-catalogos', except: ['index']),
         ];
     }
 
