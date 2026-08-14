@@ -20,6 +20,7 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
         ->names('assets')
         ->except(['destroy']);
 
+    Route::post('activos/{asset}/archivos', [AssetFileController::class, 'store'])->name('assets.files.store');
     Route::delete('activos/{asset}/archivos/{file}', [AssetFileController::class, 'destroy'])->name('assets.files.destroy');
 
     Route::get('activos/{asset}/qr', [AssetQrController::class, 'show'])->name('assets.qr');

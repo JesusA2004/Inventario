@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Enums\AssetFileType;
 use App\Enums\AssetStatus;
 use App\Enums\LoanStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Asset extends Model
@@ -105,6 +107,14 @@ class Asset extends Model
     public function files(): HasMany
     {
         return $this->hasMany(AssetFile::class);
+    }
+
+    /**
+     * La foto más reciente del activo, usada como miniatura en el listado.
+     */
+    public function latestPhoto(): HasOne
+    {
+        return $this->hasOne(AssetFile::class)->where('type', AssetFileType::Foto)->latestOfMany();
     }
 
     public function movements(): HasMany

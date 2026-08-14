@@ -58,6 +58,18 @@ watch(
     },
 );
 
+// Encadenamiento inverso: elegir la sucursal autoselecciona su empresa.
+watch(
+    () => form.branch_id,
+    (newBranchId) => {
+        const branch = props.branches.find((b) => b.id === newBranchId);
+
+        if (branch && branch.company_id != null && String(branch.company_id) !== String(form.company_id)) {
+            form.company_id = branch.company_id;
+        }
+    },
+);
+
 function submit() {
     form.transform((data) => ({ ...data, department_id: data.department_id || null })).post('/auditorias');
 }

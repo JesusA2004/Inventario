@@ -6,6 +6,7 @@ use App\Enums\AssetStatus;
 use App\Models\Asset;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 /** @mixin Asset */
 class AssetResource extends JsonResource
@@ -26,6 +27,7 @@ class AssetResource extends JsonResource
             'serial_number' => $this->serial_number,
             'status' => $status ? ['value' => $status->value, 'label' => $status->label(), 'color' => $status->color()] : null,
             'in_inventory' => (bool) $this->in_inventory,
+            'photo_url' => $this->whenLoaded('latestPhoto', fn () => $this->latestPhoto ? Storage::url($this->latestPhoto->path) : null),
             'company' => $this->whenLoaded('company', fn () => ['id' => $this->company->id, 'name' => $this->company->name, 'code' => $this->company->code]),
             'branch' => $this->whenLoaded('branch', fn () => $this->branch ? ['id' => $this->branch->id, 'name' => $this->branch->name] : null),
             'department' => $this->whenLoaded('department', fn () => $this->department ? ['id' => $this->department->id, 'name' => $this->department->name] : null),

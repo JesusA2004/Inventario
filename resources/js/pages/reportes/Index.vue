@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { Download, FileBarChart, FileText, RefreshCw } from '@lucide/vue';
+import { Download, FileBarChart, FileText, RefreshCw, X } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import HorizontalBarList from '@/components/charts/HorizontalBarList.vue';
@@ -94,6 +94,30 @@ const branchOptions = computed(() =>
         : props.inventoryFilterOptions.branches.filter((b) => String(b.company_id) === companyFilter.value),
 );
 
+// Encadenamiento en ambos sentidos entre empresa y sucursal.
+watch(companyFilter, (newCompanyId) => {
+    const branch = props.inventoryFilterOptions.branches.find((b) => String(b.id) === inventoryFilters.value.branch_id);
+
+    if (branch && String(branch.company_id) !== newCompanyId) {
+        inventoryFilters.value.branch_id = 'all';
+    }
+});
+
+watch(
+    () => inventoryFilters.value.branch_id,
+    (newBranchId) => {
+        if (newBranchId === 'all') {
+return;
+}
+
+        const branch = props.inventoryFilterOptions.branches.find((b) => String(b.id) === newBranchId);
+
+        if (branch && String(branch.company_id) !== companyFilter.value) {
+            companyFilter.value = String(branch.company_id);
+        }
+    },
+);
+
 const companyComboOptions = computed(() => [
     { value: 'all', label: 'Todas las empresas' },
     ...props.companies.map((c) => ({ value: String(c.id), label: c.name })),
@@ -173,6 +197,24 @@ const descriptions: Record<string, string> = {
 const liveData = ref<InventoryData | null>(null);
 const loading = ref(false);
 let debounceTimer: ReturnType<typeof setTimeout>;
+
+function clearInventoryFilters() {
+    companyFilter.value = 'all';
+    from.value = null;
+    to.value = null;
+
+    for (const key of Object.keys(inventoryFilters.value) as (keyof typeof inventoryFilters.value)[]) {
+        inventoryFilters.value[key] = 'all';
+    }
+}
+
+const inventoryActiveFiltersCount = computed(
+    () =>
+        (companyFilter.value !== 'all' ? 1 : 0) +
+        (from.value ? 1 : 0) +
+        (to.value ? 1 : 0) +
+        Object.values(inventoryFilters.value).filter((v) => v !== 'all').length,
+);
 
 async function loadLiveData() {
     loading.value = true;
@@ -284,6 +326,15 @@ const statusColorMap: Record<string, string> = {
                     <h2 class="text-base font-semibold text-foreground">Inventario general · en tiempo real</h2>
                 </div>
                 <div class="flex gap-2">
+                    <Button
+                        v-if="inventoryActiveFiltersCount > 0"
+                        variant="ghost"
+                        size="sm"
+                        @click="clearInventoryFilters"
+                    >
+                        <X class="mr-1 size-4" />
+                        Limpiar filtros
+                    </Button>
                     <a :href="exportUrl('inventario', 'excel')">
                         <Button variant="outline" size="sm">
                             <Download class="mr-1 size-4" />

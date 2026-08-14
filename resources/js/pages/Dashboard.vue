@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import {
     Boxes,
     ClipboardCheck,
@@ -12,7 +12,7 @@ import {
     UserRoundX,
     Wrench,
 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import HorizontalBarList from '@/components/charts/HorizontalBarList.vue';
 import MonthlyTrendChart from '@/components/charts/MonthlyTrendChart.vue';
@@ -27,6 +27,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { getJson } from '@/lib/http';
 import { dashboard } from '@/routes';
 
 type Stats = {
@@ -40,22 +41,32 @@ type Stats = {
     availableParts: number;
 };
 
-const props = defineProps<{
-    stats: Stats;
-    charts: {
-        byCompany: { name: string; total: number }[];
-        byType: { name: string; total: number }[];
-        byStatus: { label: string; color: string; total: number }[];
-        byBranch: { name: string; total: number }[];
-        byDepartment: { name: string; total: number }[];
-        monthly: { month: string; altas: number; bajas: number }[];
-    };
-    filters: { company_id: number | null; branch_id: number | null; months: number };
-    filterOptions: {
-        companies: { id: number; name: string }[];
-        branches: { id: number; name: string; company_id: number }[];
-    };
-}>();
+type NamedTotal = { name: string; total: number };
+type StatusTotal = { label: string; color: string; total: number };
+
+type ChartData = {
+    byCompany: NamedTotal[];
+    byType: NamedTotal[];
+    byStatus: StatusTotal[];
+    byBranch: NamedTotal[];
+    byDepartment: NamedTotal[];
+    byLoanStatus: StatusTotal[];
+    byPartStatus: StatusTotal[];
+    byResponsible: { full_name: string; total: number }[];
+    monthly: { month: string; altas: number; bajas: number }[];
+};
+
+type DashboardData = { stats: Stats; charts: ChartData };
+
+const props = defineProps<
+    DashboardData & {
+        filters: { company_id: number | null; branch_id: number | null; months: number };
+        filterOptions: {
+            companies: { id: number; name: string }[];
+            branches: { id: number; name: string; company_id: number }[];
+        };
+    }
+>();
 
 defineOptions({
     layout: {
@@ -80,23 +91,52 @@ const branchComboOptions = computed(() => {
     return [{ value: 'all', label: 'Todas las sucursales' }, ...branches.map((b) => ({ value: String(b.id), label: b.name }))];
 });
 
-function applyFilters() {
-    router.get(
-        '/dashboard',
-        {
-            company_id: companyFilter.value !== 'all' ? companyFilter.value : undefined,
-            branch_id: branchFilter.value !== 'all' ? branchFilter.value : undefined,
-            months: monthsFilter.value,
-        },
-        { preserveState: true, replace: true },
-    );
-}
-
+// Encadenamiento en ambos sentidos: elegir empresa filtra las sucursales
+// disponibles; elegir una sucursal directamente autoselecciona su empresa.
 function onCompanyChange(value: string | number | null) {
     companyFilter.value = String(value ?? 'all');
     branchFilter.value = 'all';
-    applyFilters();
 }
+
+function onBranchChange(value: string | number | null) {
+    branchFilter.value = String(value ?? 'all');
+
+    if (branchFilter.value !== 'all') {
+        const branch = props.filterOptions.branches.find((b) => String(b.id) === branchFilter.value);
+
+        if (branch) {
+            companyFilter.value = String(branch.company_id);
+        }
+    }
+}
+
+// Panel en tiempo real: cada cambio de filtro vuelve a consultar el mismo
+// endpoint que alimenta la carga inicial, sin recargar la página.
+const stats = ref<Stats>(props.stats);
+const charts = ref<ChartData>(props.charts);
+const loading = ref(false);
+let debounceTimer: ReturnType<typeof setTimeout>;
+
+async function loadData() {
+    loading.value = true;
+
+    try {
+        const data = await getJson<DashboardData>('/dashboard/datos', {
+            company_id: companyFilter.value !== 'all' ? companyFilter.value : undefined,
+            branch_id: branchFilter.value !== 'all' ? branchFilter.value : undefined,
+            months: monthsFilter.value,
+        });
+        stats.value = data.stats;
+        charts.value = data.charts;
+    } finally {
+        loading.value = false;
+    }
+}
+
+watch([companyFilter, branchFilter, monthsFilter], () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(loadData, 300);
+});
 
 const statusColorMap: Record<string, string> = {
     green: '--chart-1',
@@ -123,14 +163,14 @@ const statusColorMap: Record<string, string> = {
                     @update:model-value="onCompanyChange"
                 />
                 <Combobox
-                    v-model="branchFilter"
+                    :model-value="branchFilter"
                     :options="branchComboOptions"
                     placeholder="Sucursal"
                     search-placeholder="Buscar sucursal..."
                     class="w-40"
-                    @update:model-value="applyFilters"
+                    @update:model-value="onBranchChange"
                 />
-                <Select v-model="monthsFilter" @update:model-value="applyFilters">
+                <Select v-model="monthsFilter">
                     <SelectTrigger class="w-36"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="3">Últimos 3 meses</SelectItem>
@@ -143,25 +183,36 @@ const statusColorMap: Record<string, string> = {
 
         <!-- Mobile quick actions -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:hidden">
-            <Link href="/escanear" class="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-sm">
+            <Link href="/escanear" class="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]">
                 <QrCode class="size-6 text-primary" />
                 <span class="text-xs font-medium">Escanear QR</span>
             </Link>
-            <Link href="/activos/crear" class="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-sm">
+            <Link href="/activos/crear" class="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]">
                 <Plus class="size-6 text-primary" />
                 <span class="text-xs font-medium">Nuevo activo</span>
             </Link>
-            <Link href="/activos" class="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-sm">
+            <Link href="/activos" class="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]">
                 <Search class="size-6 text-primary" />
                 <span class="text-xs font-medium">Buscar activo</span>
             </Link>
-            <Link href="/auditorias/crear" class="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-sm">
+            <Link href="/auditorias/crear" class="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]">
                 <ClipboardCheck class="size-6 text-primary" />
                 <span class="text-xs font-medium">Nueva auditoría</span>
             </Link>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="flex items-center gap-2">
+            <span class="relative flex size-2.5">
+                <span
+                    class="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75"
+                    :class="{ 'opacity-0': !loading }"
+                />
+                <span class="relative inline-flex size-2.5 rounded-full bg-primary" />
+            </span>
+            <p class="text-xs text-muted-foreground">{{ loading ? 'Actualizando...' : 'Datos en tiempo real' }}</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 transition-opacity duration-200 sm:grid-cols-4" :class="{ 'opacity-60': loading }">
             <StatCard title="Total de activos" :value="stats.total" :icon="Boxes" />
             <StatCard title="En inventario" :value="stats.inInventory" :icon="PackageCheck" tone="positive" />
             <StatCard title="Dados de baja" :value="stats.decommissioned" :icon="Trash2" />
@@ -172,20 +223,20 @@ const statusColorMap: Record<string, string> = {
             <StatCard title="Piezas disponibles" :value="stats.availableParts" :icon="Wrench" tone="positive" />
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-2">
-            <Card>
+        <div class="grid gap-4 transition-opacity duration-200 lg:grid-cols-2" :class="{ 'opacity-60': loading }">
+            <Card class="transition-shadow hover:shadow-md">
                 <CardHeader><CardTitle class="text-base">Activos por empresa</CardTitle></CardHeader>
                 <CardContent>
                     <HorizontalBarList :data="charts.byCompany.map((c) => ({ label: c.name, value: c.total }))" />
                 </CardContent>
             </Card>
-            <Card>
+            <Card class="transition-shadow hover:shadow-md">
                 <CardHeader><CardTitle class="text-base">Activos por tipo</CardTitle></CardHeader>
                 <CardContent>
                     <DonutChart :data="charts.byType.map((t) => ({ label: t.name, value: t.total }))" />
                 </CardContent>
             </Card>
-            <Card>
+            <Card class="transition-shadow hover:shadow-md">
                 <CardHeader><CardTitle class="text-base">Estado del inventario</CardTitle></CardHeader>
                 <CardContent>
                     <DonutChart
@@ -193,22 +244,47 @@ const statusColorMap: Record<string, string> = {
                     />
                 </CardContent>
             </Card>
-            <Card>
+            <Card class="transition-shadow hover:shadow-md">
                 <CardHeader><CardTitle class="text-base">Activos por sucursal</CardTitle></CardHeader>
                 <CardContent>
                     <HorizontalBarList :data="charts.byBranch.map((b) => ({ label: b.name, value: b.total }))" color-var="--chart-2" />
                 </CardContent>
             </Card>
-            <Card>
+            <Card class="transition-shadow hover:shadow-md">
                 <CardHeader><CardTitle class="text-base">Activos por área</CardTitle></CardHeader>
                 <CardContent>
                     <HorizontalBarList :data="charts.byDepartment.map((d) => ({ label: d.name, value: d.total }))" color-var="--chart-3" />
                 </CardContent>
             </Card>
-            <Card>
+            <Card class="transition-shadow hover:shadow-md">
                 <CardHeader><CardTitle class="text-base">Altas / bajas por mes</CardTitle></CardHeader>
                 <CardContent>
                     <MonthlyTrendChart :data="charts.monthly" />
+                </CardContent>
+            </Card>
+            <Card class="transition-shadow hover:shadow-md">
+                <CardHeader><CardTitle class="text-base">Préstamos por estado</CardTitle></CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :data="charts.byLoanStatus.map((s) => ({ label: s.label, value: s.total, colorVar: statusColorMap[s.color] ?? '--chart-3' }))"
+                    />
+                </CardContent>
+            </Card>
+            <Card class="transition-shadow hover:shadow-md">
+                <CardHeader><CardTitle class="text-base">Piezas por estado</CardTitle></CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :data="charts.byPartStatus.map((s) => ({ label: s.label, value: s.total, colorVar: statusColorMap[s.color] ?? '--chart-3' }))"
+                    />
+                </CardContent>
+            </Card>
+            <Card class="transition-shadow hover:shadow-md lg:col-span-2">
+                <CardHeader><CardTitle class="text-base">Responsables con más activos asignados</CardTitle></CardHeader>
+                <CardContent>
+                    <HorizontalBarList
+                        :data="charts.byResponsible.map((r) => ({ label: r.full_name, value: r.total }))"
+                        color-var="--chart-4"
+                    />
                 </CardContent>
             </Card>
         </div>

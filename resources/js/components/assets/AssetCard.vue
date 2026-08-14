@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { ChevronRight } from '@lucide/vue';
+import { ImageOff } from '@lucide/vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { AssetListItem } from '@/types/assets';
@@ -25,56 +25,60 @@ defineEmits<{
 <template>
     <Link
         :href="`/activos/${asset.public_id}`"
-        class="relative block rounded-xl border p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
-        :class="
-            selectable && selected
-                ? 'border-primary bg-accent/40 ring-1 ring-primary'
-                : 'border-border bg-card'
-        "
+        class="group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg active:scale-[0.99]"
+        :class="selectable && selected ? 'border-primary ring-1 ring-primary' : 'border-border'"
     >
         <button
             v-if="selectable"
             type="button"
-            class="absolute top-3 right-3 z-10 rounded-md bg-card/80 p-0.5 backdrop-blur"
+            class="absolute top-2 right-2 z-10 rounded-md bg-card/90 p-0.5 shadow-sm backdrop-blur"
             @click.stop.prevent="$emit('toggle-select', asset.id)"
         >
             <Checkbox :model-value="selected" />
         </button>
 
-        <div class="flex items-start justify-between gap-2 pr-8">
+        <!-- Miniatura cuadrada: foto real si existe, si no un ícono neutro -->
+        <div class="relative aspect-square w-full overflow-hidden bg-muted">
+            <img
+                v-if="asset.photo_url"
+                :src="asset.photo_url"
+                :alt="asset.name"
+                loading="lazy"
+                class="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div v-else class="flex size-full flex-col items-center justify-center gap-1.5 text-muted-foreground/60">
+                <ImageOff class="size-8" />
+                <span class="text-[11px]">Sin foto</span>
+            </div>
+            <StatusBadge
+                v-if="asset.status"
+                :label="asset.status.label"
+                :color="asset.status.color"
+                class="absolute bottom-2 left-2 shadow-sm"
+            />
+        </div>
+
+        <div class="flex flex-1 flex-col gap-2 p-3">
             <div class="min-w-0">
-                <p class="truncate font-medium text-foreground">
+                <p class="truncate text-sm font-medium text-foreground">
                     {{ asset.name }}
                 </p>
                 <p class="font-mono text-xs text-muted-foreground">
                     {{ asset.internal_code }}
                 </p>
             </div>
-            <StatusBadge
-                v-if="asset.status"
-                :label="asset.status.label"
-                :color="asset.status.color"
-                class="shrink-0"
-            />
-        </div>
 
-        <div class="mt-3 space-y-1 text-sm text-muted-foreground">
-            <p>{{ asset.company?.name }} · {{ asset.branch?.name }}</p>
-            <p v-if="asset.department">{{ asset.department.name }}</p>
-        </div>
+            <div class="space-y-0.5 text-xs text-muted-foreground">
+                <p class="truncate">{{ asset.company?.name }} · {{ asset.branch?.name }}</p>
+                <p v-if="asset.department" class="truncate">{{ asset.department.name }}</p>
+            </div>
 
-        <div
-            class="mt-3 flex items-center justify-between border-t border-border pt-3"
-        >
-            <div class="text-sm">
-                <p v-if="asset.currentResponsible" class="text-foreground">
+            <div class="mt-auto border-t border-border pt-2 text-xs">
+                <p v-if="asset.currentResponsible" class="truncate text-foreground">
                     {{ asset.currentResponsible.full_name }}
                 </p>
-                <p v-else class="text-muted-foreground italic">
-                    Sin responsable
-                </p>
+                <p v-else class="text-muted-foreground italic">Sin responsable</p>
             </div>
-            <ChevronRight class="size-4 text-muted-foreground" />
         </div>
     </Link>
 </template>

@@ -88,6 +88,15 @@ function applySearch(value: string) {
     applyFilters();
 }
 
+function clearFilters() {
+    search.value = '';
+    status.value = 'all';
+    companyFilter.value = 'all';
+    applyFilters();
+}
+
+const activeFiltersCount = computed(() => [status.value, companyFilter.value].filter((v) => v !== 'all').length);
+
 function formatDate(value: string | null): string {
     if (!value) {
 return '—';
@@ -156,7 +165,13 @@ return;
             <StatCard title="Préstamos vencidos" :value="stats.overdue" tone="destructive" :icon="UsersRound" />
         </div>
 
-        <FilterBar :search="search" search-placeholder="Buscar por activo..." @update:search="applySearch">
+        <FilterBar
+            :search="search"
+            search-placeholder="Buscar por activo..."
+            :active-filters-count="activeFiltersCount"
+            @update:search="applySearch"
+            @clear="clearFilters"
+        >
             <Select v-model="status" @update:model-value="applyFilters">
                 <SelectTrigger class="w-full lg:w-40"><SelectValue placeholder="Estatus" /></SelectTrigger>
                 <SelectContent>

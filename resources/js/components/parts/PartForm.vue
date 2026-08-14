@@ -58,6 +58,18 @@ watch(
     },
 );
 
+// Encadenamiento inverso: elegir la sucursal autoselecciona su empresa.
+watch(
+    () => form.branch_id,
+    (newBranchId) => {
+        const branch = options.value.branches.find((b) => b.id === newBranchId);
+
+        if (branch && String(branch.company_id) !== String(form.company_id)) {
+            form.company_id = branch.company_id;
+        }
+    },
+);
+
 const brandDialogOpen = ref(false);
 function onBrandCreated(brand: { id: number; name: string }) {
     options.value.brands.push(brand);

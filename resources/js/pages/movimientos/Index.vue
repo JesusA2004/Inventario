@@ -105,6 +105,39 @@ function applySearch(value: string) {
     applyFilters();
 }
 
+function clearFilters() {
+    search.value = '';
+    companyFilter.value = 'all';
+    branchFilter.value = 'all';
+    userFilter.value = 'all';
+    typeFilter.value = 'all';
+    from.value = null;
+    to.value = null;
+    applyFilters();
+}
+
+function onCompanyChange() {
+    const branch = props.filterOptions.branches.find((b) => String(b.id) === branchFilter.value);
+
+    if (branch && String(branch.company_id) !== companyFilter.value) {
+        branchFilter.value = 'all';
+    }
+
+    applyFilters();
+}
+
+function onBranchChange() {
+    if (branchFilter.value !== 'all') {
+        const branch = props.filterOptions.branches.find((b) => String(b.id) === branchFilter.value);
+
+        if (branch) {
+            companyFilter.value = String(branch.company_id);
+        }
+    }
+
+    applyFilters();
+}
+
 const activeFiltersCount = computed(
     () =>
         [companyFilter.value, branchFilter.value, userFilter.value, typeFilter.value].filter((v) => v !== 'all').length +
@@ -132,6 +165,7 @@ return '—';
             search-placeholder="Buscar por clave o nombre del activo..."
             :active-filters-count="activeFiltersCount"
             @update:search="applySearch"
+            @clear="clearFilters"
         >
             <Combobox
                 v-model="companyFilter"
@@ -139,7 +173,7 @@ return '—';
                 placeholder="Empresa"
                 search-placeholder="Buscar empresa..."
                 class="w-full lg:w-40"
-                @update:model-value="applyFilters"
+                @update:model-value="onCompanyChange"
             />
             <Combobox
                 v-model="branchFilter"
@@ -147,7 +181,7 @@ return '—';
                 placeholder="Sucursal"
                 search-placeholder="Buscar sucursal..."
                 class="w-full lg:w-40"
-                @update:model-value="applyFilters"
+                @update:model-value="onBranchChange"
             />
             <Combobox
                 v-model="userFilter"

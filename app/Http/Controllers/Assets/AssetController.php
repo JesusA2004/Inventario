@@ -89,7 +89,7 @@ class AssetController extends Controller implements HasMiddleware
     public function index(Request $request): Response
     {
         $assets = $this->filteredQuery($request)
-            ->with(['company:id,name,code', 'branch:id,name', 'department:id,name', 'brand:id,name', 'assetType:id,name', 'currentResponsible:id,full_name'])
+            ->with(['company:id,name,code', 'branch:id,name', 'department:id,name', 'brand:id,name', 'assetType:id,name', 'currentResponsible:id,full_name', 'latestPhoto'])
             ->orderBy($request->string('sort', 'created_at')->toString(), $request->string('direction', 'desc')->toString())
             ->paginate(20)
             ->withQueryString()
@@ -233,6 +233,7 @@ class AssetController extends Controller implements HasMiddleware
             'company', 'branch', 'department', 'assetType', 'brand',
             'currentResponsible', 'deliveredByResponsible', 'creator:id,name',
             'files.uploader:id,name',
+            'latestPhoto',
             'movements.user:id,name',
             'reviews.user:id,name',
             'loans.assignedTo', 'loans.deliveredBy', 'loans.receivedBy',

@@ -36,6 +36,7 @@ export type AssetListItem = {
     serial_number: string | null;
     status: StatusOption | null;
     in_inventory: boolean;
+    photo_url: string | null;
     company: { id: number; name: string; code: string } | null;
     branch: { id: number; name: string } | null;
     department: { id: number; name: string } | null;

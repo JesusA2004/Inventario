@@ -91,6 +91,17 @@ function applySearch(value: string) {
     applyFilters();
 }
 
+function clearFilters() {
+    search.value = '';
+    companyFilter.value = 'all';
+    statusFilter.value = 'all';
+    applyFilters();
+}
+
+const activeFiltersCount = computed(
+    () => [companyFilter.value, statusFilter.value].filter((v) => v !== 'all').length,
+);
+
 const decommissionPart = ref<Part | null>(null);
 const decommissionForm = useForm({ reason: '', notes: '' });
 
@@ -121,7 +132,13 @@ return;
             </template>
         </PageHeader>
 
-        <FilterBar :search="search" search-placeholder="Buscar por clave, nombre o número de parte..." @update:search="applySearch">
+        <FilterBar
+            :search="search"
+            search-placeholder="Buscar por clave, nombre o número de parte..."
+            :active-filters-count="activeFiltersCount"
+            @update:search="applySearch"
+            @clear="clearFilters"
+        >
             <Combobox
                 v-model="companyFilter"
                 :options="companyComboOptions"

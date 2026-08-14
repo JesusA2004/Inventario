@@ -29,6 +29,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -105,9 +106,84 @@ class ReportController extends Controller implements HasMiddleware
             'filtersSummary' => $this->filtersSummary($request),
             'content' => $content,
             'total' => $records->count(),
+            'kpis' => $this->pdfKpis($type, $request),
+            'breakdown' => $this->pdfBreakdown($type, $request),
         ])->setPaper('letter', 'landscape');
 
         return $pdf->stream("reporte-{$type}-".now()->format('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Números clave (las mismas tarjetas que ya se ven en vivo en
+     * /reportes) para que el PDF no sea solo una tabla: esto es lo que
+     * antes faltaba al exportar.
+     *
+     * @return array<int, array{label: string, value: int|string}>
+     */
+    private function pdfKpis(string $type, Request $request): array
+    {
+        if ($type === 'inventario') {
+            $charts = $this->inventoryCharts($request);
+
+            return [
+                ['label' => 'Total de activos', 'value' => $this->inventoryBaseQuery($request)->count()],
+                ['label' => 'En inventario', 'value' => $this->inventoryBaseQuery($request)->where('assets.in_inventory', true)->count()],
+                ['label' => 'Tipos distintos', 'value' => $charts['byType']->count()],
+                ['label' => 'Sucursales', 'value' => $charts['byBranch']->count()],
+            ];
+        }
+
+        $summary = $this->buildSummary($request);
+
+        return match ($type) {
+            'bajas' => [
+                ['label' => 'Total de bajas', 'value' => $summary['bajas']['total']],
+                ['label' => 'Motivos distintos', 'value' => $summary['bajas']['byReason']->count()],
+            ],
+            'prestamos' => [
+                ['label' => 'Prestados', 'value' => $summary['prestamos']['active']],
+                ['label' => 'Devueltos', 'value' => $summary['prestamos']['returned']],
+                ['label' => 'Vencidos', 'value' => $summary['prestamos']['overdue']],
+                ['label' => 'Por vencer (7 días)', 'value' => $summary['prestamos']['dueSoon']],
+            ],
+            'piezas' => [
+                ['label' => 'Total', 'value' => $summary['piezas']['total']],
+                ['label' => 'Funcionales', 'value' => $summary['piezas']['functional']],
+                ['label' => 'Dañadas', 'value' => $summary['piezas']['damaged']],
+                ['label' => 'En revisión', 'value' => $summary['piezas']['review']],
+                ['label' => 'De baja', 'value' => $summary['piezas']['decommissioned']],
+            ],
+            'auditorias' => [
+                ['label' => 'Auditorías', 'value' => $summary['auditorias']['total']],
+                ['label' => 'Esperados', 'value' => $summary['auditorias']['expected']],
+                ['label' => 'Encontrados', 'value' => $summary['auditorias']['found']],
+                ['label' => 'Faltantes', 'value' => $summary['auditorias']['missing']],
+                ['label' => '% cumplimiento', 'value' => $summary['auditorias']['compliancePercent'].'%'],
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * Desglose de barras (equivalente en HTML/CSS a las gráficas que se ven
+     * en pantalla; dompdf no puede pintar los componentes Vue, así que se
+     * reconstruye con divs simples) para el tipo de reporte solicitado.
+     *
+     * @return array{title: string, items: Collection<int, array{label: string, total: int}>}|null
+     */
+    private function pdfBreakdown(string $type, Request $request): ?array
+    {
+        return match ($type) {
+            'inventario' => [
+                'title' => 'Activos por estatus',
+                'items' => $this->inventoryCharts($request)['byStatus']->map(fn ($row) => ['label' => $row['label'], 'total' => $row['total']]),
+            ],
+            'bajas' => [
+                'title' => 'Bajas por motivo',
+                'items' => $this->buildSummary($request)['bajas']['byReason'],
+            ],
+            default => null,
+        };
     }
 
     private function filtersSummary(Request $request): string
@@ -189,8 +265,6 @@ class ReportController extends Controller implements HasMiddleware
      */
     public function inventoryData(Request $request): JsonResponse
     {
-        $total = $this->inventoryBaseQuery($request)->count();
-
         $rows = $this->inventoryBaseQuery($request)
             ->with(['company:id,name', 'branch:id,name', 'department:id,name', 'brand:id,name', 'assetType:id,name', 'currentResponsible:id,full_name'])
             ->orderBy('internal_code')
@@ -213,6 +287,19 @@ class ReportController extends Controller implements HasMiddleware
                 ];
             });
 
+        return response()->json([
+            'total' => $this->inventoryBaseQuery($request)->count(),
+            'inInventory' => $this->inventoryBaseQuery($request)->where('assets.in_inventory', true)->count(),
+            'rows' => $rows,
+            ...$this->inventoryCharts($request),
+        ]);
+    }
+
+    /**
+     * @return array{byStatus: Collection, byBranch: Collection, byType: Collection, byCompany: Collection}
+     */
+    private function inventoryCharts(Request $request): array
+    {
         $byStatus = $this->inventoryBaseQuery($request)
             ->select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
@@ -247,15 +334,7 @@ class ReportController extends Controller implements HasMiddleware
             ->limit(8)
             ->get();
 
-        return response()->json([
-            'total' => $total,
-            'inInventory' => $this->inventoryBaseQuery($request)->where('assets.in_inventory', true)->count(),
-            'rows' => $rows,
-            'byStatus' => $byStatus,
-            'byBranch' => $byBranch,
-            'byType' => $byType,
-            'byCompany' => $byCompany,
-        ]);
+        return compact('byStatus', 'byBranch', 'byType', 'byCompany');
     }
 
     /**
@@ -263,6 +342,14 @@ class ReportController extends Controller implements HasMiddleware
      * mismos filtros (empresa + rango de fechas) que sus Excel/PDF.
      */
     public function summary(Request $request): JsonResponse
+    {
+        return response()->json($this->buildSummary($request));
+    }
+
+    /**
+     * @return array{bajas: array, prestamos: array, piezas: array, auditorias: array}
+     */
+    private function buildSummary(Request $request): array
     {
         $bajas = [
             'total' => $this->decommissionedQuery($request)->count(),
@@ -322,7 +409,7 @@ class ReportController extends Controller implements HasMiddleware
             'compliancePercent' => $expected > 0 ? (int) round(($found / $expected) * 100) : 0,
         ];
 
-        return response()->json(compact('bajas', 'prestamos', 'piezas', 'auditorias'));
+        return compact('bajas', 'prestamos', 'piezas', 'auditorias');
     }
 
     /**

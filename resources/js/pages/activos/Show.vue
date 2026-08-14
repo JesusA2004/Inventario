@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { Head, Link, router, setLayoutProps } from '@inertiajs/vue3';
+import { Head, Link, router, setLayoutProps, useForm } from '@inertiajs/vue3';
 import {
     Ban,
+    Camera,
     ClipboardCheck,
     Download,
     Edit,
+    FileUp,
+    ImageOff,
     MapPinned,
     MoreHorizontal,
     Printer,
     RotateCcw,
+    Trash2,
     UserCog,
     UsersRound,
 } from '@lucide/vue';
@@ -43,6 +47,7 @@ type AssetDetail = {
     serial_number: string | null;
     status: { value: string; label: string; color: string } | null;
     in_inventory: boolean;
+    photo_url: string | null;
     company: { id: number; name: string; code: string } | null;
     branch: { id: number; name: string } | null;
     department: { id: number; name: string } | null;
@@ -103,6 +108,7 @@ type AssetDetail = {
         public_id: string;
         name: string;
         internal_code: string;
+        status: { value: string; label: string; color: string };
     }[];
 };
 
@@ -138,6 +144,41 @@ function reactivate() {
             },
         },
     );
+}
+
+// Subir foto (cámara del teléfono o archivo) o factura directamente desde
+// la ficha, sin tener que entrar a Editar.
+const photoInput = ref<HTMLInputElement | null>(null);
+const invoiceInput = ref<HTMLInputElement | null>(null);
+const uploadForm = useForm<{ type: 'foto' | 'factura'; file: File | null }>({
+    type: 'foto',
+    file: null,
+});
+
+function uploadFile(type: 'foto' | 'factura', input: HTMLInputElement | null, event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+
+    if (!file) {
+        return;
+    }
+
+    uploadForm.type = type;
+    uploadForm.file = file;
+    uploadForm.post(`/activos/${props.asset.public_id}/archivos`, {
+        preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+            uploadForm.reset();
+
+            if (input) {
+                input.value = '';
+            }
+        },
+    });
+}
+
+function deleteFile(fileId: number) {
+    router.delete(`/activos/${props.asset.public_id}/archivos/${fileId}`, { preserveScroll: true });
 }
 
 setLayoutProps({
@@ -186,6 +227,17 @@ function formatDateTime(value: string): string {
         <div
             class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
         >
+            <div class="flex items-start gap-4">
+                <img
+                    v-if="asset.photo_url"
+                    :src="asset.photo_url"
+                    :alt="asset.name"
+                    class="size-20 shrink-0 rounded-xl border border-border object-cover shadow-sm sm:size-24"
+                />
+                <div class="flex size-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-border bg-muted text-muted-foreground/60 sm:size-24" v-else>
+                    <ImageOff class="size-7" />
+                </div>
+
             <div class="space-y-2">
                 <div class="flex flex-wrap items-center gap-2">
                     <h1
@@ -211,6 +263,7 @@ function formatDateTime(value: string): string {
                         · {{ asset.department.name }}</span
                     >
                 </p>
+            </div>
             </div>
 
             <div class="flex items-center gap-2">
@@ -280,6 +333,7 @@ function formatDateTime(value: string): string {
                 <TabsTrigger value="historial">Historial</TabsTrigger>
                 <TabsTrigger value="prestamos">Préstamos</TabsTrigger>
                 <TabsTrigger value="revisiones">Revisiones</TabsTrigger>
+                <TabsTrigger value="piezas">Piezas</TabsTrigger>
                 <TabsTrigger value="archivos">Archivos</TabsTrigger>
                 <TabsTrigger value="qr">QR</TabsTrigger>
             </TabsList>
@@ -570,32 +624,105 @@ function formatDateTime(value: string): string {
                 </div>
             </TabsContent>
 
-            <TabsContent value="archivos">
+            <TabsContent value="piezas" class="space-y-4">
+                <div
+                    v-if="asset.parts.length === 0"
+                    class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground"
+                >
+                    Este activo no tiene piezas o componentes vinculados. Vincúlalos desde
+                    <Link href="/piezas/crear" class="text-primary hover:underline">Piezas y refacciones</Link>
+                    marcando "Ensamblada" y eligiendo este activo como el equipo al que pertenecen.
+                </div>
+                <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <Link
+                        v-for="part in asset.parts"
+                        :key="part.id"
+                        :href="`/piezas?q=${part.internal_code}`"
+                        class="rounded-xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
+                    >
+                        <div class="flex items-start justify-between gap-2">
+                            <p class="truncate text-sm font-medium text-foreground">{{ part.name }}</p>
+                            <StatusBadge :label="part.status.label" :color="part.status.color" class="shrink-0" />
+                        </div>
+                        <p class="font-mono text-xs text-muted-foreground">{{ part.internal_code }}</p>
+                    </Link>
+                </div>
+                <p class="text-xs text-muted-foreground">
+                    Este equipo está armado con las piezas anteriores (procesador, memoria, etc.). Una pieza también puede
+                    existir suelta, sin estar asignada a ningún activo.
+                </p>
+            </TabsContent>
+
+            <TabsContent value="archivos" class="space-y-4">
+                <div class="flex flex-wrap gap-2">
+                    <input
+                        ref="photoInput"
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        class="hidden"
+                        @change="(event) => uploadFile('foto', photoInput, event)"
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        :disabled="uploadForm.processing"
+                        @click="photoInput?.click()"
+                    >
+                        <Camera class="mr-1 size-4" />
+                        Tomar / subir foto
+                    </Button>
+                    <input
+                        ref="invoiceInput"
+                        type="file"
+                        accept=".pdf,image/*"
+                        class="hidden"
+                        @change="(event) => uploadFile('factura', invoiceInput, event)"
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        :disabled="uploadForm.processing"
+                        @click="invoiceInput?.click()"
+                    >
+                        <FileUp class="mr-1 size-4" />
+                        Subir factura
+                    </Button>
+                </div>
+
                 <div
                     v-if="asset.files.length === 0"
                     class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground"
                 >
-                    No hay archivos adjuntos. Edita el activo para subir
-                    facturas o fotografías.
+                    No hay archivos adjuntos todavía. Usa los botones de arriba para tomar una foto con el teléfono o subir
+                    un archivo.
                 </div>
                 <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <a
+                    <div
                         v-for="file in asset.files"
                         :key="file.id"
-                        :href="`/storage/${file.path}`"
-                        target="_blank"
-                        class="rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-md"
+                        class="group relative rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-md"
                     >
-                        <Badge variant="outline" class="mb-2">{{
-                            file.type_label
-                        }}</Badge>
-                        <p class="truncate text-sm font-medium">
-                            {{ file.original_name }}
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                            {{ formatDateTime(file.created_at) }}
-                        </p>
-                    </a>
+                        <button
+                            type="button"
+                            class="absolute top-2 right-2 rounded-md bg-card/80 p-1 text-muted-foreground opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 hover:text-destructive"
+                            title="Eliminar archivo"
+                            @click="deleteFile(file.id)"
+                        >
+                            <Trash2 class="size-4" />
+                        </button>
+                        <a :href="`/storage/${file.path}`" target="_blank" class="block pr-6">
+                            <Badge variant="outline" class="mb-2">{{
+                                file.type_label
+                            }}</Badge>
+                            <p class="truncate text-sm font-medium">
+                                {{ file.original_name }}
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ formatDateTime(file.created_at) }}
+                            </p>
+                        </a>
+                    </div>
                 </div>
             </TabsContent>
 

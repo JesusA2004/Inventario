@@ -106,6 +106,19 @@ watch(
     },
 );
 
+// Encadenamiento inverso: si eligen la sucursal directamente, autoselecciona
+// su empresa (están ligadas, nunca deben quedar desincronizadas).
+watch(
+    () => form.branch_id,
+    (newBranchId) => {
+        const branch = options.value.branches.find((b) => b.id === newBranchId);
+
+        if (branch && String(branch.company_id) !== String(form.company_id)) {
+            form.company_id = branch.company_id;
+        }
+    },
+);
+
 // Quick-create dialogs
 const branchDialogOpen = ref(false);
 const departmentDialogOpen = ref(false);

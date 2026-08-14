@@ -53,3 +53,26 @@ test('active loans and available parts stat cards obey the company filter instea
     expect($props['stats']['activeLoans'])->toBe(1);
     expect($props['stats']['availableParts'])->toBe(1);
 });
+
+test('the live dashboard data endpoint returns the same shape and totals as the initial page load', function () {
+    $user = User::factory()->create();
+
+    $company = Company::create(['name' => 'MR LANA', 'code' => 'CML', 'active' => true]);
+    $branch = Branch::create(['company_id' => $company->id, 'name' => 'Corporativo', 'code' => 'CORP', 'active' => true]);
+    $assetType = AssetType::create(['name' => 'Laptop', 'code' => 'LAP', 'active' => true]);
+
+    Asset::factory()->count(2)->create([
+        'company_id' => $company->id,
+        'branch_id' => $branch->id,
+        'asset_type_id' => $assetType->id,
+    ]);
+
+    $response = $this->actingAs($user)->get('/dashboard/datos?company_id='.$company->id);
+
+    $response->assertOk();
+    $response->assertJsonStructure([
+        'stats' => ['total', 'inInventory', 'decommissioned', 'damaged', 'inReview', 'activeLoans', 'overdueLoans', 'availableParts'],
+        'charts' => ['byCompany', 'byType', 'byStatus', 'byBranch', 'byDepartment', 'byLoanStatus', 'byPartStatus', 'byResponsible', 'monthly'],
+    ]);
+    expect($response->json('stats.total'))->toBe(2);
+});

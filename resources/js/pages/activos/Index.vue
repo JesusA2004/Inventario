@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Boxes, CheckSquare, Download, FileArchive, Plus, QrCode, Square, X } from '@lucide/vue';
+import { Boxes, CheckSquare, Download, FileArchive, LayoutGrid, List, Plus, QrCode, Square, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import AssetCard from '@/components/assets/AssetCard.vue';
 import Combobox from '@/components/Combobox.vue';
@@ -98,6 +98,38 @@ const statusComboOptions = computed(() => [
     ...props.filterOptions.statuses.map((s) => ({ value: s.value, label: s.label })),
 ]);
 
+function onCompanyFilterChange() {
+    // Encadenamiento hacia adelante: si la sucursal/área/responsable
+    // seleccionados no pertenecen a la nueva empresa, se limpian.
+    const branch = props.filterOptions.branches.find((b) => String(b.id) === filterState.value.branch_id);
+
+    if (branch && String(branch.company_id) !== filterState.value.company_id) {
+        filterState.value.branch_id = 'all';
+    }
+
+    const department = props.filterOptions.departments.find((d) => String(d.id) === filterState.value.department_id);
+
+    if (department && department.company_id !== null && String(department.company_id) !== filterState.value.company_id) {
+        filterState.value.department_id = 'all';
+    }
+
+    applyFilters();
+}
+
+function onBranchFilterChange() {
+    // Encadenamiento inverso: elegir una sucursal directamente autoselecciona
+    // su empresa, ya que están ligadas.
+    if (filterState.value.branch_id !== 'all') {
+        const branch = props.filterOptions.branches.find((b) => String(b.id) === filterState.value.branch_id);
+
+        if (branch) {
+            filterState.value.company_id = String(branch.company_id);
+        }
+    }
+
+    applyFilters();
+}
+
 function applyFilters() {
     const params: Record<string, string | undefined> = {
         q: search.value || undefined,
@@ -112,6 +144,16 @@ function applyFilters() {
 
 function applySearch(value: string) {
     search.value = value;
+    applyFilters();
+}
+
+function clearFilters() {
+    search.value = '';
+
+    for (const key of Object.keys(filterState.value) as (keyof typeof filterState.value)[]) {
+        filterState.value[key] = 'all';
+    }
+
     applyFilters();
 }
 
@@ -134,6 +176,8 @@ const exportUrl = computed(() => {
 
     return `/activos-exportar?${params.toString()}`;
 });
+
+const viewMode = ref<'cards' | 'table'>('cards');
 
 // Selección para generar etiquetas QR en lote, directamente desde el listado.
 const qrMode = ref(false);
@@ -237,6 +281,26 @@ function downloadQrZip() {
             description="Inventario completo de equipos de TI"
         >
             <template #actions>
+                <div class="flex items-center rounded-lg border border-border p-0.5">
+                    <button
+                        type="button"
+                        class="rounded-md p-1.5 transition-colors"
+                        :class="viewMode === 'cards' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'"
+                        title="Vista de tarjetas"
+                        @click="viewMode = 'cards'"
+                    >
+                        <LayoutGrid class="size-4" />
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-md p-1.5 transition-colors"
+                        :class="viewMode === 'table' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'"
+                        title="Vista de tabla"
+                        @click="viewMode = 'table'"
+                    >
+                        <List class="size-4" />
+                    </button>
+                </div>
                 <Button :variant="qrMode ? 'default' : 'outline'" @click="toggleQrMode">
                     <component :is="qrMode ? X : QrCode" class="mr-1 size-4" />
                     {{ qrMode ? 'Cancelar selección' : 'Generar etiquetas QR' }}
@@ -300,6 +364,7 @@ function downloadQrZip() {
             search-placeholder="Buscar por clave, dispositivo, serie o modelo..."
             :active-filters-count="activeFiltersCount"
             @update:search="applySearch"
+            @clear="clearFilters"
         >
             <Combobox
                 v-model="filterState.company_id"
@@ -307,7 +372,7 @@ function downloadQrZip() {
                 placeholder="Empresa"
                 search-placeholder="Buscar empresa..."
                 class="w-full lg:w-40"
-                @update:model-value="applyFilters"
+                @update:model-value="onCompanyFilterChange"
             />
             <Combobox
                 v-model="filterState.branch_id"
@@ -315,7 +380,7 @@ function downloadQrZip() {
                 placeholder="Sucursal"
                 search-placeholder="Buscar sucursal..."
                 class="w-full lg:w-40"
-                @update:model-value="applyFilters"
+                @update:model-value="onBranchFilterChange"
             />
             <Combobox
                 v-model="filterState.department_id"
@@ -389,8 +454,8 @@ function downloadQrZip() {
         </EmptyState>
 
         <template v-else>
-            <!-- Mobile: cards -->
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:hidden">
+            <!-- Galería de tarjetas con foto (vista por defecto) -->
+            <div v-if="viewMode === 'cards'" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 <AssetCard
                     v-for="asset in assets.data"
                     :key="asset.id"
@@ -401,9 +466,10 @@ function downloadQrZip() {
                 />
             </div>
 
-            <!-- Desktop: table -->
+            <!-- Tabla (vista opcional, más densa) -->
             <div
-                class="hidden overflow-x-auto rounded-xl border border-border bg-card lg:block"
+                v-else
+                class="overflow-x-auto rounded-xl border border-border bg-card"
             >
                 <Table>
                     <TableHeader>
