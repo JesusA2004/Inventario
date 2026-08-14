@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import Combobox from '@/components/Combobox.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,23 @@ const departmentOptions = computed(() =>
     props.departments
         .filter((d) => !d.company_id || String(d.company_id) === String(form.company_id))
         .map((d) => ({ value: d.id, label: d.name })),
+);
+
+watch(
+    () => form.company_id,
+    (newCompanyId) => {
+        const branch = props.branches.find((b) => b.id === form.branch_id);
+
+        if (branch && String(branch.company_id) !== String(newCompanyId)) {
+            form.branch_id = '';
+        }
+
+        const department = props.departments.find((d) => d.id === form.department_id);
+
+        if (department && department.company_id && String(department.company_id) !== String(newCompanyId)) {
+            form.department_id = '';
+        }
+    },
 );
 
 function submit() {

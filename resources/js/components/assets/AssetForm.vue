@@ -74,6 +74,38 @@ const responsibleOptions = computed(() =>
         .map((r) => ({ value: r.id, label: r.full_name })),
 );
 
+// Al cambiar de empresa, limpia cualquier sucursal/área/responsable
+// seleccionado que ya no pertenezca a la nueva empresa: nunca dejar un ID
+// oculto de la empresa anterior.
+watch(
+    () => form.company_id,
+    (newCompanyId) => {
+        const branch = options.value.branches.find((b) => b.id === form.branch_id);
+
+        if (branch && String(branch.company_id) !== String(newCompanyId)) {
+            form.branch_id = '';
+        }
+
+        const department = options.value.departments.find((d) => d.id === form.department_id);
+
+        if (department && department.company_id && String(department.company_id) !== String(newCompanyId)) {
+            form.department_id = '';
+        }
+
+        const currentResponsible = options.value.responsiblePeople.find((r) => r.id === form.current_responsible_id);
+
+        if (currentResponsible && String(currentResponsible.company_id) !== String(newCompanyId)) {
+            form.current_responsible_id = '';
+        }
+
+        const deliveredBy = options.value.responsiblePeople.find((r) => r.id === form.delivered_by_responsible_id);
+
+        if (deliveredBy && String(deliveredBy.company_id) !== String(newCompanyId)) {
+            form.delivered_by_responsible_id = '';
+        }
+    },
+);
+
 // Quick-create dialogs
 const branchDialogOpen = ref(false);
 const departmentDialogOpen = ref(false);

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Boxes, CheckSquare, Download, Plus, QrCode, Square, X } from '@lucide/vue';
+import { Boxes, CheckSquare, Download, FileArchive, Plus, QrCode, Square, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import AssetCard from '@/components/assets/AssetCard.vue';
+import Combobox from '@/components/Combobox.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FilterBar from '@/components/FilterBar.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -25,6 +26,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { getJson } from '@/lib/http';
 import type { AssetListItem, Paginated, StatusOption } from '@/types/assets';
 
 type FilterOptions = {
@@ -54,6 +56,7 @@ const filterState = ref({
     department_id: props.filters.department_id ?? 'all',
     asset_type_id: props.filters.asset_type_id ?? 'all',
     brand_id: props.filters.brand_id ?? 'all',
+    responsible_id: props.filters.responsible_id ?? 'all',
     status: props.filters.status ?? 'all',
     in_inventory: props.filters.in_inventory ?? 'all',
 });
@@ -65,6 +68,35 @@ const branchOptions = computed(() =>
               (b) => String(b.company_id) === filterState.value.company_id,
           ),
 );
+
+const companyComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las empresas' },
+    ...props.filterOptions.companies.map((c) => ({ value: String(c.id), label: c.name })),
+]);
+const branchComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las sucursales' },
+    ...branchOptions.value.map((b) => ({ value: String(b.id), label: b.name })),
+]);
+const departmentComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las áreas' },
+    ...props.filterOptions.departments.map((d) => ({ value: String(d.id), label: d.name })),
+]);
+const assetTypeComboOptions = computed(() => [
+    { value: 'all', label: 'Todos los tipos' },
+    ...props.filterOptions.assetTypes.map((t) => ({ value: String(t.id), label: t.name })),
+]);
+const brandComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las marcas' },
+    ...props.filterOptions.brands.map((b) => ({ value: String(b.id), label: b.name })),
+]);
+const responsibleComboOptions = computed(() => [
+    { value: 'all', label: 'Todos los responsables' },
+    ...props.filterOptions.responsiblePeople.map((r) => ({ value: String(r.id), label: r.full_name })),
+]);
+const statusComboOptions = computed(() => [
+    { value: 'all', label: 'Todos los estatus' },
+    ...props.filterOptions.statuses.map((s) => ({ value: s.value, label: s.label })),
+]);
 
 function applyFilters() {
     const params: Record<string, string | undefined> = {
@@ -135,10 +167,29 @@ function clearSelection() {
     selected.value = new Set();
 }
 
-function generateLabels(template: 'standard' | 'compact' = 'standard') {
+const selectingAllFiltered = ref(false);
+
+async function selectAllFiltered() {
+    selectingAllFiltered.value = true;
+
+    try {
+        const params: Record<string, string | undefined> = { q: search.value || undefined };
+
+        for (const [key, value] of Object.entries(filterState.value)) {
+            params[key] = value !== 'all' ? value : undefined;
+        }
+
+        const result = await getJson<{ ids: number[]; truncated: boolean }>('/activos/ids-filtrados', params);
+        selected.value = new Set(result.ids);
+    } finally {
+        selectingAllFiltered.value = false;
+    }
+}
+
+function submitAssetIdsForm(action: string, extraFields: Record<string, string> = {}) {
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/etiquetas/pdf';
+    form.action = action;
     form.target = '_blank';
 
     const csrf = document.createElement('input');
@@ -147,11 +198,13 @@ function generateLabels(template: 'standard' | 'compact' = 'standard') {
     csrf.value = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
     form.appendChild(csrf);
 
-    const templateInput = document.createElement('input');
-    templateInput.type = 'hidden';
-    templateInput.name = 'template';
-    templateInput.value = template;
-    form.appendChild(templateInput);
+    for (const [name, value] of Object.entries(extraFields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+    }
 
     selected.value.forEach((id) => {
         const input = document.createElement('input');
@@ -164,6 +217,14 @@ function generateLabels(template: 'standard' | 'compact' = 'standard') {
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
+}
+
+function generateLabels(template: 'standard' | 'compact' = 'standard') {
+    submitAssetIdsForm('/etiquetas/pdf', { template });
+}
+
+function downloadQrZip() {
+    submitAssetIdsForm('/activos-qr-zip');
 }
 </script>
 
@@ -204,12 +265,25 @@ function generateLabels(template: 'standard' | 'compact' = 'standard') {
                     <component :is="allOnPageSelected ? CheckSquare : Square" class="mr-1 size-4" />
                     Seleccionar página
                 </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    :disabled="selectingAllFiltered"
+                    @click="selectAllFiltered"
+                >
+                    <CheckSquare class="mr-1 size-4" />
+                    {{ selectingAllFiltered ? 'Buscando...' : `Seleccionar los ${assets.total} resultados` }}
+                </Button>
                 <Button variant="ghost" size="sm" :disabled="selected.size === 0" @click="clearSelection">
                     Limpiar selección
                 </Button>
                 <span class="text-sm text-muted-foreground">{{ selected.size }} seleccionados</span>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" :disabled="selected.size === 0" @click="downloadQrZip">
+                    <FileArchive class="mr-1 size-4" />
+                    Descargar QR (.zip)
+                </Button>
                 <Button variant="outline" size="sm" :disabled="selected.size === 0" @click="generateLabels('compact')">
                     <QrCode class="mr-1 size-4" />
                     3 columnas
@@ -227,74 +301,62 @@ function generateLabels(template: 'standard' | 'compact' = 'standard') {
             :active-filters-count="activeFiltersCount"
             @update:search="applySearch"
         >
-            <Select
+            <Combobox
                 v-model="filterState.company_id"
+                :options="companyComboOptions"
+                placeholder="Empresa"
+                search-placeholder="Buscar empresa..."
+                class="w-full lg:w-40"
                 @update:model-value="applyFilters"
-            >
-                <SelectTrigger class="w-full lg:w-40"
-                    ><SelectValue placeholder="Empresa"
-                /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todas las empresas</SelectItem>
-                    <SelectItem
-                        v-for="c in filterOptions.companies"
-                        :key="c.id"
-                        :value="String(c.id)"
-                        >{{ c.name }}</SelectItem
-                    >
-                </SelectContent>
-            </Select>
-            <Select
+            />
+            <Combobox
                 v-model="filterState.branch_id"
+                :options="branchComboOptions"
+                placeholder="Sucursal"
+                search-placeholder="Buscar sucursal..."
+                class="w-full lg:w-40"
                 @update:model-value="applyFilters"
-            >
-                <SelectTrigger class="w-full lg:w-40"
-                    ><SelectValue placeholder="Sucursal"
-                /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todas las sucursales</SelectItem>
-                    <SelectItem
-                        v-for="b in branchOptions"
-                        :key="b.id"
-                        :value="String(b.id)"
-                        >{{ b.name }}</SelectItem
-                    >
-                </SelectContent>
-            </Select>
-            <Select
+            />
+            <Combobox
+                v-model="filterState.department_id"
+                :options="departmentComboOptions"
+                placeholder="Área"
+                search-placeholder="Buscar área..."
+                class="w-full lg:w-40"
+                @update:model-value="applyFilters"
+            />
+            <Combobox
                 v-model="filterState.asset_type_id"
+                :options="assetTypeComboOptions"
+                placeholder="Tipo"
+                search-placeholder="Buscar tipo..."
+                class="w-full lg:w-40"
                 @update:model-value="applyFilters"
-            >
-                <SelectTrigger class="w-full lg:w-40"
-                    ><SelectValue placeholder="Tipo"
-                /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todos los tipos</SelectItem>
-                    <SelectItem
-                        v-for="t in filterOptions.assetTypes"
-                        :key="t.id"
-                        :value="String(t.id)"
-                        >{{ t.name }}</SelectItem
-                    >
-                </SelectContent>
-            </Select>
-            <Select
+            />
+            <Combobox
+                v-model="filterState.brand_id"
+                :options="brandComboOptions"
+                placeholder="Marca"
+                search-placeholder="Buscar marca..."
+                class="w-full lg:w-40"
+                @update:model-value="applyFilters"
+            />
+            <Combobox
+                v-model="filterState.responsible_id"
+                :options="responsibleComboOptions"
+                placeholder="Responsable"
+                search-placeholder="Buscar responsable..."
+                class="w-full lg:w-44"
+                @update:model-value="applyFilters"
+            />
+            <Combobox
                 v-model="filterState.status"
+                :options="statusComboOptions"
+                placeholder="Estatus"
+                search-placeholder="Buscar estatus..."
+                class="w-full lg:w-36"
                 @update:model-value="applyFilters"
-            >
-                <SelectTrigger class="w-full lg:w-36"
-                    ><SelectValue placeholder="Estatus"
-                /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todos los estatus</SelectItem>
-                    <SelectItem
-                        v-for="s in filterOptions.statuses"
-                        :key="s.value"
-                        :value="s.value"
-                        >{{ s.label }}</SelectItem
-                    >
-                </SelectContent>
-            </Select>
+            />
             <Select
                 v-model="filterState.in_inventory"
                 @update:model-value="applyFilters"

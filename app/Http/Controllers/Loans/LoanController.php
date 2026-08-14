@@ -120,6 +120,24 @@ class LoanController extends Controller implements HasMiddleware
                 ]);
             }
 
+            foreach ([
+                'assigned_to_responsible_id' => 'assigned_to_responsible_id',
+                'delivered_by_responsible_id' => 'delivered_by_responsible_id',
+                'received_by_responsible_id' => 'received_by_responsible_id',
+            ] as $field) {
+                if (empty($data[$field])) {
+                    continue;
+                }
+
+                $responsible = ResponsiblePerson::find($data[$field]);
+
+                if ($responsible && $responsible->company_id !== $asset->company_id) {
+                    throw ValidationException::withMessages([
+                        $field => 'El responsable seleccionado no pertenece a la empresa del activo.',
+                    ]);
+                }
+            }
+
             $loan = Loan::create([
                 'asset_id' => $asset->id,
                 'company_id' => $asset->company_id,

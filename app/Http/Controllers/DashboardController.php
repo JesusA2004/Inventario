@@ -34,9 +34,23 @@ class DashboardController extends Controller
             'decommissioned' => (clone $baseQuery)->where('in_inventory', false)->count(),
             'damaged' => (clone $baseQuery)->where('status', AssetStatus::Danado)->count(),
             'inReview' => (clone $baseQuery)->where('status', AssetStatus::EnRevision)->count(),
-            'activeLoans' => Loan::query()->where('status', LoanStatus::Prestado)->count(),
-            'overdueLoans' => Loan::query()->where('status', LoanStatus::Prestado)->where('expected_return_date', '<', now())->count(),
-            'availableParts' => Part::query()->where('in_inventory', true)->where('status', PartStatus::Funcional)->count(),
+            'activeLoans' => Loan::query()
+                ->where('status', LoanStatus::Prestado)
+                ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
+                ->when($branchId, fn ($query) => $query->whereHas('asset', fn ($asset) => $asset->where('branch_id', $branchId)))
+                ->count(),
+            'overdueLoans' => Loan::query()
+                ->where('status', LoanStatus::Prestado)
+                ->where('expected_return_date', '<', now())
+                ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
+                ->when($branchId, fn ($query) => $query->whereHas('asset', fn ($asset) => $asset->where('branch_id', $branchId)))
+                ->count(),
+            'availableParts' => Part::query()
+                ->where('in_inventory', true)
+                ->where('status', PartStatus::Funcional)
+                ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
+                ->when($branchId, fn ($query) => $query->where('branch_id', $branchId))
+                ->count(),
         ];
 
         $byCompany = (clone $baseQuery)

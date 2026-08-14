@@ -27,10 +27,12 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use ZipArchive;
 
 class AssetController extends Controller implements HasMiddleware
 {
@@ -42,8 +44,8 @@ class AssetController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:ver-activos', only: ['index', 'show', 'export', 'search']),
-            new Middleware('permission:crear-activos', only: ['create', 'store']),
+            new Middleware('permission:ver-activos', only: ['index', 'show', 'export', 'search', 'checkSerial', 'qrZip', 'filteredIds']),
+            new Middleware('permission:crear-activos', only: ['create', 'store', 'generateCode']),
             new Middleware('permission:editar-activos', only: ['edit', 'update']),
         ];
     }
@@ -69,6 +71,19 @@ class AssetController extends Controller implements HasMiddleware
             ->get(['id', 'public_id', 'internal_code', 'name', 'company_id']);
 
         return response()->json($assets);
+    }
+
+    /**
+     * Devuelve los IDs de TODOS los activos que coinciden con los filtros
+     * actuales de /activos (no solo la página visible), para poder
+     * distinguir "seleccionar esta página" de "seleccionar los N
+     * resultados filtrados" antes de generar etiquetas o el ZIP de QR.
+     */
+    public function filteredIds(Request $request): JsonResponse
+    {
+        $ids = $this->filteredQuery($request)->limit(1000)->pluck('id');
+
+        return response()->json(['ids' => $ids, 'truncated' => $ids->count() >= 1000]);
     }
 
     public function index(Request $request): Response
@@ -103,6 +118,59 @@ class AssetController extends Controller implements HasMiddleware
         );
     }
 
+    /**
+     * Descarga masiva de códigos QR en un .zip. Acepta una selección
+     * explícita de IDs (checkboxes marcados) o, si no se envían, genera el
+     * ZIP para el conjunto completo filtrado actual (botón "seleccionar
+     * todos los resultados filtrados").
+     */
+    public function qrZip(Request $request): BinaryFileResponse
+    {
+        $request->validate([
+            'asset_ids' => ['nullable', 'array'],
+            'asset_ids.*' => ['integer'],
+        ]);
+
+        $assets = $request->filled('asset_ids')
+            ? Asset::query()->whereIn('id', $request->array('asset_ids'))->get()
+            : $this->filteredQuery($request)->limit(500)->get();
+
+        abort_if($assets->isEmpty(), 422, 'No hay activos para generar el ZIP de códigos QR.');
+
+        set_time_limit(120);
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'qr-zip-');
+        $zip = new ZipArchive;
+        $zip->open($tempPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+        $usedNames = [];
+
+        foreach ($assets as $asset) {
+            $png = $this->qrCodeService->png($this->qrCodeService->publicUrl($asset), 600);
+            $baseName = Str::slug($asset->internal_code).'-'.Str::slug($asset->name).'-qr';
+
+            $name = "{$baseName}.png";
+            $suffix = 2;
+
+            while (in_array($name, $usedNames, true)) {
+                $name = "{$baseName}-{$suffix}.png";
+                $suffix++;
+            }
+
+            $usedNames[] = $name;
+            $zip->addFromString($name, $png->getString());
+        }
+
+        $zip->close();
+
+        return response()
+            ->download($tempPath, 'qr-inventario-'.now()->format('Y-m-d').'.zip')
+            ->deleteFileAfterSend(true);
+    }
+
+    /**
+     * @return Builder<Asset>
+     */
     private function filteredQuery(Request $request): Builder
     {
         return Asset::query()
@@ -111,7 +179,9 @@ class AssetController extends Controller implements HasMiddleware
                     $inner->where('internal_code', 'like', "%{$search}%")
                         ->orWhere('name', 'like', "%{$search}%")
                         ->orWhere('serial_number', 'like', "%{$search}%")
-                        ->orWhere('model', 'like', "%{$search}%");
+                        ->orWhere('model', 'like', "%{$search}%")
+                        ->orWhereHas('brand', fn ($brand) => $brand->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('currentResponsible', fn ($responsible) => $responsible->where('full_name', 'like', "%{$search}%"));
                 });
             })
             ->when($request->integer('company_id'), fn ($query, $value) => $query->where('company_id', $value))

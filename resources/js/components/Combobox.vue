@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, ChevronsUpDown } from '@lucide/vue';
+import { Check, ChevronsUpDown, Loader2, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +31,8 @@ const props = withDefaults(
         searchPlaceholder?: string;
         emptyText?: string;
         disabled?: boolean;
+        loading?: boolean;
+        clearable?: boolean;
         class?: string;
     }>(),
     {
@@ -39,6 +41,8 @@ const props = withDefaults(
         searchPlaceholder: 'Buscar...',
         emptyText: 'Sin resultados.',
         disabled: false,
+        loading: false,
+        clearable: false,
     },
 );
 
@@ -58,6 +62,11 @@ function onSelect(value: string | number) {
     emit('update:modelValue', props.modelValue === value ? null : value);
     open.value = false;
 }
+
+function onClear(event: Event) {
+    event.stopPropagation();
+    emit('update:modelValue', null);
+}
 </script>
 
 <template>
@@ -68,7 +77,7 @@ function onSelect(value: string | number) {
                 variant="outline"
                 role="combobox"
                 :aria-expanded="open"
-                :disabled="disabled"
+                :disabled="disabled || loading"
                 :class="
                     cn(
                         'w-full justify-between font-normal',
@@ -80,7 +89,13 @@ function onSelect(value: string | number) {
                 <span class="truncate">{{
                     selected ? selected.label : placeholder
                 }}</span>
-                <ChevronsUpDown class="ml-2 size-4 shrink-0 opacity-50" />
+                <Loader2 v-if="loading" class="ml-2 size-4 shrink-0 animate-spin opacity-50" />
+                <X
+                    v-else-if="clearable && selected"
+                    class="ml-2 size-4 shrink-0 opacity-50 hover:opacity-100"
+                    @click="onClear"
+                />
+                <ChevronsUpDown v-else class="ml-2 size-4 shrink-0 opacity-50" />
             </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -89,7 +104,7 @@ function onSelect(value: string | number) {
         >
             <Command>
                 <CommandInput :placeholder="searchPlaceholder" />
-                <CommandList>
+                <CommandList class="max-h-64">
                     <CommandEmpty>{{ emptyText }}</CommandEmpty>
                     <CommandGroup>
                         <CommandItem

@@ -4,6 +4,7 @@ import { Download, FileBarChart, FileText, RefreshCw } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import HorizontalBarList from '@/components/charts/HorizontalBarList.vue';
+import Combobox from '@/components/Combobox.vue';
 import DatePicker from '@/components/DatePicker.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import StatCard from '@/components/StatCard.vue';
@@ -54,6 +55,13 @@ type InventoryData = {
     byCompany: { name: string; total: number }[];
 };
 
+type SummaryData = {
+    bajas: { total: number; byReason: { label: string; total: number }[]; byCompany: { name: string; total: number }[] };
+    prestamos: { active: number; returned: number; overdue: number; dueSoon: number };
+    piezas: { total: number; functional: number; damaged: number; review: number; decommissioned: number };
+    auditorias: { total: number; expected: number; found: number; missing: number; differences: number; compliancePercent: number };
+};
+
 const props = defineProps<{
     companies: { id: number; name: string }[];
     reports: { key: string; title: string }[];
@@ -85,6 +93,35 @@ const branchOptions = computed(() =>
         ? props.inventoryFilterOptions.branches
         : props.inventoryFilterOptions.branches.filter((b) => String(b.company_id) === companyFilter.value),
 );
+
+const companyComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las empresas' },
+    ...props.companies.map((c) => ({ value: String(c.id), label: c.name })),
+]);
+const branchComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las sucursales' },
+    ...branchOptions.value.map((b) => ({ value: String(b.id), label: b.name })),
+]);
+const departmentComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las áreas' },
+    ...props.inventoryFilterOptions.departments.map((d) => ({ value: String(d.id), label: d.name })),
+]);
+const responsibleComboOptions = computed(() => [
+    { value: 'all', label: 'Todos los responsables' },
+    ...props.inventoryFilterOptions.responsiblePeople.map((r) => ({ value: String(r.id), label: r.full_name })),
+]);
+const assetTypeComboOptions = computed(() => [
+    { value: 'all', label: 'Todos los tipos' },
+    ...props.inventoryFilterOptions.assetTypes.map((t) => ({ value: String(t.id), label: t.name })),
+]);
+const brandComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las marcas' },
+    ...props.inventoryFilterOptions.brands.map((b) => ({ value: String(b.id), label: b.name })),
+]);
+const statusComboOptions = computed(() => [
+    { value: 'all', label: 'Todos los estatus' },
+    ...props.inventoryFilterOptions.statuses.map((s) => ({ value: s.value, label: s.label })),
+]);
 
 const baseQuery = computed(() => {
     const params = new URLSearchParams();
@@ -158,7 +195,65 @@ watch(
     { deep: true },
 );
 
-onMounted(loadLiveData);
+// KPIs en vivo de los otros 4 reportes (bajas/préstamos/piezas/auditorías),
+// con los mismos filtros de empresa y fechas que usan sus Excel/PDF.
+const summaryData = ref<SummaryData | null>(null);
+let summaryDebounceTimer: ReturnType<typeof setTimeout>;
+
+async function loadSummary() {
+    const params = Object.fromEntries(baseQuery.value.entries());
+    summaryData.value = await getJson<SummaryData>('/reportes/resumen', params);
+}
+
+watch(
+    baseQuery,
+    () => {
+        clearTimeout(summaryDebounceTimer);
+        summaryDebounceTimer = setTimeout(loadSummary, 300);
+    },
+    { deep: true },
+);
+
+const kpisByReport = computed<Record<string, { label: string; value: number }[]>>(() => ({
+    bajas: summaryData.value
+        ? [
+              { label: 'Total', value: summaryData.value.bajas.total },
+              { label: 'Motivos distintos', value: summaryData.value.bajas.byReason.length },
+          ]
+        : [],
+    prestamos: summaryData.value
+        ? [
+              { label: 'Prestados', value: summaryData.value.prestamos.active },
+              { label: 'Devueltos', value: summaryData.value.prestamos.returned },
+              { label: 'Vencidos', value: summaryData.value.prestamos.overdue },
+              { label: 'Por vencer (7 días)', value: summaryData.value.prestamos.dueSoon },
+          ]
+        : [],
+    piezas: summaryData.value
+        ? [
+              { label: 'Total', value: summaryData.value.piezas.total },
+              { label: 'Funcionales', value: summaryData.value.piezas.functional },
+              { label: 'Dañadas', value: summaryData.value.piezas.damaged },
+              { label: 'En revisión', value: summaryData.value.piezas.review },
+              { label: 'De baja', value: summaryData.value.piezas.decommissioned },
+          ]
+        : [],
+    auditorias: summaryData.value
+        ? [
+              { label: 'Auditorías', value: summaryData.value.auditorias.total },
+              { label: 'Esperados', value: summaryData.value.auditorias.expected },
+              { label: 'Encontrados', value: summaryData.value.auditorias.found },
+              { label: 'Faltantes', value: summaryData.value.auditorias.missing },
+              { label: 'Con diferencias', value: summaryData.value.auditorias.differences },
+              { label: '% cumplimiento', value: summaryData.value.auditorias.compliancePercent },
+          ]
+        : [],
+}));
+
+onMounted(() => {
+    loadLiveData();
+    loadSummary();
+});
 
 const statusColorMap: Record<string, string> = {
     green: '--chart-1',
@@ -207,73 +302,31 @@ const statusColorMap: Record<string, string> = {
             <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div class="grid gap-2">
                     <Label class="text-xs">Empresa</Label>
-                    <Select v-model="companyFilter">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas las empresas</SelectItem>
-                            <SelectItem v-for="c in companies" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Combobox v-model="companyFilter" :options="companyComboOptions" search-placeholder="Buscar empresa..." />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Sucursal</Label>
-                    <Select v-model="inventoryFilters.branch_id">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas las sucursales</SelectItem>
-                            <SelectItem v-for="b in branchOptions" :key="b.id" :value="String(b.id)">{{ b.name }}</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Combobox v-model="inventoryFilters.branch_id" :options="branchComboOptions" search-placeholder="Buscar sucursal..." />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Área</Label>
-                    <Select v-model="inventoryFilters.department_id">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas las áreas</SelectItem>
-                            <SelectItem v-for="d in inventoryFilterOptions.departments" :key="d.id" :value="String(d.id)">{{ d.name }}</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Combobox v-model="inventoryFilters.department_id" :options="departmentComboOptions" search-placeholder="Buscar área..." />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Responsable</Label>
-                    <Select v-model="inventoryFilters.responsible_id">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos los responsables</SelectItem>
-                            <SelectItem v-for="r in inventoryFilterOptions.responsiblePeople" :key="r.id" :value="String(r.id)">{{ r.full_name }}</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Combobox v-model="inventoryFilters.responsible_id" :options="responsibleComboOptions" search-placeholder="Buscar responsable..." />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Tipo de activo</Label>
-                    <Select v-model="inventoryFilters.asset_type_id">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos los tipos</SelectItem>
-                            <SelectItem v-for="t in inventoryFilterOptions.assetTypes" :key="t.id" :value="String(t.id)">{{ t.name }}</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Combobox v-model="inventoryFilters.asset_type_id" :options="assetTypeComboOptions" search-placeholder="Buscar tipo..." />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Marca</Label>
-                    <Select v-model="inventoryFilters.brand_id">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas las marcas</SelectItem>
-                            <SelectItem v-for="b in inventoryFilterOptions.brands" :key="b.id" :value="String(b.id)">{{ b.name }}</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Combobox v-model="inventoryFilters.brand_id" :options="brandComboOptions" search-placeholder="Buscar marca..." />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Estatus</Label>
-                    <Select v-model="inventoryFilters.status">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos los estatus</SelectItem>
-                            <SelectItem v-for="s in inventoryFilterOptions.statuses" :key="s.value" :value="s.value">{{ s.label }}</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Combobox v-model="inventoryFilters.status" :options="statusComboOptions" search-placeholder="Buscar estatus..." />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Sigue en inventario</Label>
@@ -380,6 +433,12 @@ const statusColorMap: Record<string, string> = {
                 </CardHeader>
                 <CardContent class="space-y-4">
                     <p class="text-sm text-muted-foreground">{{ descriptions[report.key] }}</p>
+                    <dl v-if="kpisByReport[report.key]?.length" class="grid grid-cols-2 gap-2 rounded-lg border border-border bg-muted/30 p-3 sm:grid-cols-3">
+                        <div v-for="kpi in kpisByReport[report.key]" :key="kpi.label">
+                            <dt class="text-[11px] text-muted-foreground">{{ kpi.label }}</dt>
+                            <dd class="text-lg font-semibold text-foreground">{{ kpi.value }}</dd>
+                        </div>
+                    </dl>
                     <div class="flex gap-2">
                         <a :href="exportUrl(report.key, 'excel')" class="flex-1">
                             <Button variant="outline" class="w-full">

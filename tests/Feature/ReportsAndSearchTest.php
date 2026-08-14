@@ -84,6 +84,18 @@ test('the live inventory data endpoint respects filters and matches the export',
     );
 });
 
+test('the reports summary endpoint returns kpis for bajas, prestamos, piezas and auditorias', function () {
+    $response = $this->actingAs($this->user)->get('/reportes/resumen?company_id='.$this->company->id);
+
+    $response->assertOk();
+    $response->assertJsonStructure([
+        'bajas' => ['total', 'byReason', 'byCompany'],
+        'prestamos' => ['active', 'returned', 'overdue', 'dueSoon'],
+        'piezas' => ['total', 'functional', 'damaged', 'review', 'decommissioned'],
+        'auditorias' => ['total', 'expected', 'found', 'missing', 'differences', 'compliancePercent'],
+    ]);
+});
+
 test('the global search endpoint finds assets by internal code', function () {
     $response = $this->actingAs($this->user)->get('/buscar?q=CML-LAP-777');
 

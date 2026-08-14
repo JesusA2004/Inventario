@@ -11,7 +11,9 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
     Route::get('activos/verificar-serie', [AssetController::class, 'checkSerial'])->name('assets.check-serial');
     Route::post('activos/generar-clave', [AssetController::class, 'generateCode'])->name('assets.generate-code');
     Route::get('activos/buscar', [AssetController::class, 'search'])->name('assets.search');
+    Route::get('activos/ids-filtrados', [AssetController::class, 'filteredIds'])->name('assets.filtered-ids');
     Route::get('activos-exportar', [AssetController::class, 'export'])->name('assets.export');
+    Route::post('activos-qr-zip', [AssetController::class, 'qrZip'])->name('assets.qr-zip');
 
     Route::resource('activos', AssetController::class)
         ->parameters(['activos' => 'asset'])

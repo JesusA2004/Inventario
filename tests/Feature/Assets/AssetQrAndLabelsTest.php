@@ -65,3 +65,31 @@ test('the label center can generate a pdf for selected assets', function () {
         'asset_ids' => [$this->asset->id],
     ])->assertOk();
 });
+
+test('a zip of qr codes can be generated for a selection of assets', function () {
+    $user = User::factory()->create();
+    $user->assignRole('superadministrador');
+
+    $response = $this->actingAs($user)->post('/activos-qr-zip', [
+        'asset_ids' => [$this->asset->id],
+    ]);
+
+    $response->assertOk();
+    expect($response->headers->get('content-type'))->toBe('application/zip');
+});
+
+test('the filtered ids endpoint returns every asset matching the current filters, not just one page', function () {
+    $user = User::factory()->create();
+    $user->assignRole('superadministrador');
+
+    Asset::factory()->count(3)->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+    ]);
+
+    $response = $this->actingAs($user)->get('/activos/ids-filtrados?company_id='.$this->company->id);
+
+    $response->assertOk();
+    expect($response->json('ids'))->toHaveCount(4);
+});

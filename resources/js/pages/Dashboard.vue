@@ -12,10 +12,11 @@ import {
     UserRoundX,
     Wrench,
 } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import HorizontalBarList from '@/components/charts/HorizontalBarList.vue';
 import MonthlyTrendChart from '@/components/charts/MonthlyTrendChart.vue';
+import Combobox from '@/components/Combobox.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import StatCard from '@/components/StatCard.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,6 +67,19 @@ const companyFilter = ref(props.filters.company_id ? String(props.filters.compan
 const branchFilter = ref(props.filters.branch_id ? String(props.filters.branch_id) : 'all');
 const monthsFilter = ref(String(props.filters.months));
 
+const companyComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las empresas' },
+    ...props.filterOptions.companies.map((c) => ({ value: String(c.id), label: c.name })),
+]);
+const branchComboOptions = computed(() => {
+    const branches =
+        companyFilter.value === 'all'
+            ? props.filterOptions.branches
+            : props.filterOptions.branches.filter((b) => String(b.company_id) === companyFilter.value);
+
+    return [{ value: 'all', label: 'Todas las sucursales' }, ...branches.map((b) => ({ value: String(b.id), label: b.name }))];
+});
+
 function applyFilters() {
     router.get(
         '/dashboard',
@@ -76,6 +90,12 @@ function applyFilters() {
         },
         { preserveState: true, replace: true },
     );
+}
+
+function onCompanyChange(value: string | number | null) {
+    companyFilter.value = String(value ?? 'all');
+    branchFilter.value = 'all';
+    applyFilters();
 }
 
 const statusColorMap: Record<string, string> = {
@@ -94,13 +114,22 @@ const statusColorMap: Record<string, string> = {
     <div class="flex flex-col gap-6">
         <PageHeader title="Inicio" description="Resumen del inventario de TI">
             <template #actions>
-                <Select v-model="companyFilter" @update:model-value="applyFilters">
-                    <SelectTrigger class="w-40"><SelectValue placeholder="Empresa" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todas las empresas</SelectItem>
-                        <SelectItem v-for="c in filterOptions.companies" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
-                    </SelectContent>
-                </Select>
+                <Combobox
+                    :model-value="companyFilter"
+                    :options="companyComboOptions"
+                    placeholder="Empresa"
+                    search-placeholder="Buscar empresa..."
+                    class="w-40"
+                    @update:model-value="onCompanyChange"
+                />
+                <Combobox
+                    v-model="branchFilter"
+                    :options="branchComboOptions"
+                    placeholder="Sucursal"
+                    search-placeholder="Buscar sucursal..."
+                    class="w-40"
+                    @update:model-value="applyFilters"
+                />
                 <Select v-model="monthsFilter" @update:model-value="applyFilters">
                     <SelectTrigger class="w-36"><SelectValue /></SelectTrigger>
                     <SelectContent>

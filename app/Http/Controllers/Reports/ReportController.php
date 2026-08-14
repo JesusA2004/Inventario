@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Enums\AssetStatus;
+use App\Enums\AuditItemStatus;
+use App\Enums\DecommissionReason;
+use App\Enums\LoanStatus;
+use App\Enums\PartStatus;
 use App\Exports\AssetsExport;
 use App\Exports\AuditsExport;
 use App\Exports\DecommissionedAssetsExport;
@@ -252,6 +256,73 @@ class ReportController extends Controller implements HasMiddleware
             'byType' => $byType,
             'byCompany' => $byCompany,
         ]);
+    }
+
+    /**
+     * KPIs en vivo para las tarjetas de bajas/préstamos/piezas/auditorías:
+     * mismos filtros (empresa + rango de fechas) que sus Excel/PDF.
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        $bajas = [
+            'total' => $this->decommissionedQuery($request)->count(),
+            'byReason' => $this->decommissionedQuery($request)
+                ->select('decommission_reason', DB::raw('count(*) as total'))
+                ->groupBy('decommission_reason')
+                ->get()
+                ->map(fn ($row) => [
+                    'label' => DecommissionReason::tryFrom((string) $row->decommission_reason)?->label() ?? 'Sin motivo',
+                    'total' => (int) $row->getAttribute('total'),
+                ]),
+            'byCompany' => $this->decommissionedQuery($request)
+                ->join('companies', 'companies.id', '=', 'assets.company_id')
+                ->select('companies.name', DB::raw('count(*) as total'))
+                ->groupBy('companies.name')
+                ->orderByDesc('total')
+                ->get(),
+        ];
+
+        $prestamos = [
+            'active' => $this->loansQuery($request)->where('status', LoanStatus::Prestado)->count(),
+            'returned' => $this->loansQuery($request)->where('status', LoanStatus::Devuelto)->count(),
+            'overdue' => $this->loansQuery($request)->where('status', LoanStatus::Prestado)->where('expected_return_date', '<', now())->count(),
+            'dueSoon' => $this->loansQuery($request)->where('status', LoanStatus::Prestado)->whereBetween('expected_return_date', [now(), now()->addDays(7)])->count(),
+        ];
+
+        $piezas = [
+            'total' => $this->partsQuery($request)->count(),
+            'functional' => $this->partsQuery($request)->where('status', PartStatus::Funcional)->count(),
+            'damaged' => $this->partsQuery($request)->where('status', PartStatus::Danado)->count(),
+            'review' => $this->partsQuery($request)->where('status', PartStatus::ParaRevision)->count(),
+            'decommissioned' => $this->partsQuery($request)->where('status', PartStatus::Baja)->count(),
+        ];
+
+        $auditItemsBase = fn () => DB::table('audit_items')
+            ->join('audits', 'audits.id', '=', 'audit_items.audit_id')
+            ->when($request->integer('company_id'), fn ($q, $v) => $q->where('audits.company_id', $v))
+            ->when($request->date('from'), fn ($q, $v) => $q->whereDate('audits.started_at', '>=', $v))
+            ->when($request->date('to'), fn ($q, $v) => $q->whereDate('audits.started_at', '<=', $v));
+
+        $expected = $auditItemsBase()->count();
+        $found = $auditItemsBase()->where('audit_items.status', AuditItemStatus::Encontrado->value)->count();
+        $missing = $auditItemsBase()->where('audit_items.status', AuditItemStatus::NoEncontrado->value)->count();
+        $differences = $auditItemsBase()->whereIn('audit_items.status', [
+            AuditItemStatus::UbicacionIncorrecta->value,
+            AuditItemStatus::ResponsableIncorrecto->value,
+            AuditItemStatus::RequiereRevision->value,
+            AuditItemStatus::Danado->value,
+        ])->count();
+
+        $auditorias = [
+            'total' => $this->auditsQuery($request)->count(),
+            'expected' => $expected,
+            'found' => $found,
+            'missing' => $missing,
+            'differences' => $differences,
+            'compliancePercent' => $expected > 0 ? (int) round(($found / $expected) * 100) : 0,
+        ];
+
+        return response()->json(compact('bajas', 'prestamos', 'piezas', 'auditorias'));
     }
 
     /**

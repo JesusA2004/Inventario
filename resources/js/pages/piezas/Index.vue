@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { MoreHorizontal, Package, Plus, QrCode } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import Combobox from '@/components/Combobox.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FilterBar from '@/components/FilterBar.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -68,6 +69,11 @@ const search = ref(props.filters.q ?? '');
 const companyFilter = ref(props.filters.company_id ?? 'all');
 const statusFilter = ref(props.filters.status ?? 'all');
 
+const companyComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las empresas' },
+    ...props.filterOptions.companies.map((c) => ({ value: String(c.id), label: c.name })),
+]);
+
 function applyFilters() {
     router.get(
         '/piezas',
@@ -116,13 +122,14 @@ return;
         </PageHeader>
 
         <FilterBar :search="search" search-placeholder="Buscar por clave, nombre o número de parte..." @update:search="applySearch">
-            <Select v-model="companyFilter" @update:model-value="applyFilters">
-                <SelectTrigger class="w-full lg:w-44"><SelectValue placeholder="Empresa" /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todas las empresas</SelectItem>
-                    <SelectItem v-for="c in filterOptions.companies" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
-                </SelectContent>
-            </Select>
+            <Combobox
+                v-model="companyFilter"
+                :options="companyComboOptions"
+                placeholder="Empresa"
+                search-placeholder="Buscar empresa..."
+                class="w-full lg:w-44"
+                @update:model-value="applyFilters"
+            />
             <Select v-model="statusFilter" @update:model-value="applyFilters">
                 <SelectTrigger class="w-full lg:w-40"><SelectValue placeholder="Estatus" /></SelectTrigger>
                 <SelectContent>

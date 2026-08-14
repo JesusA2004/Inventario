@@ -20,6 +20,7 @@ require __DIR__.'/labels.php';
 require __DIR__.'/loans.php';
 require __DIR__.'/parts.php';
 require __DIR__.'/audits.php';
+require __DIR__.'/movements.php';
 require __DIR__.'/admin.php';
 require __DIR__.'/reports.php';
 require __DIR__.'/search.php';

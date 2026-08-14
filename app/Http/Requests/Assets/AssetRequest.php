@@ -3,6 +3,10 @@
 namespace App\Http\Requests\Assets;
 
 use App\Enums\AssetStatus;
+use App\Models\Branch;
+use App\Models\Department;
+use App\Models\ResponsiblePerson;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
@@ -47,5 +51,52 @@ class AssetRequest extends FormRequest
             'acquired_at' => ['required', 'date'],
             'last_reviewed_at' => ['nullable', 'date'],
         ];
+    }
+
+    /**
+     * El frontend ya filtra las opciones por empresa, pero el backend no
+     * puede confiar solo en eso: aquí se rechaza cualquier combinación de
+     * sucursal/área/responsable que pertenezca a otra empresa distinta de
+     * la seleccionada.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $companyId = $this->integer('company_id') ?: null;
+
+            if (! $companyId) {
+                return;
+            }
+
+            if ($branchId = $this->integer('branch_id')) {
+                $branch = Branch::find($branchId);
+
+                if ($branch && $branch->company_id !== $companyId) {
+                    $validator->errors()->add('branch_id', 'La sucursal seleccionada no pertenece a la empresa elegida.');
+                }
+            }
+
+            if ($departmentId = $this->integer('department_id')) {
+                $department = Department::find($departmentId);
+
+                if ($department && $department->company_id !== null && $department->company_id !== $companyId) {
+                    $validator->errors()->add('department_id', 'El área seleccionada no pertenece a la empresa elegida.');
+                }
+            }
+
+            foreach (['current_responsible_id', 'delivered_by_responsible_id'] as $field) {
+                $responsibleId = $this->integer($field);
+
+                if (! $responsibleId) {
+                    continue;
+                }
+
+                $responsible = ResponsiblePerson::find($responsibleId);
+
+                if ($responsible && $responsible->company_id !== $companyId) {
+                    $validator->errors()->add($field, 'El responsable seleccionado no pertenece a la empresa elegida.');
+                }
+            }
+        });
     }
 }

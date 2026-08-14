@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import {
+    ArrowLeftRight,
     Boxes,
     Building2,
     ClipboardCheck,
@@ -66,6 +67,7 @@ const navGroups: NavGroup[] = [
         items: [
             { title: 'Auditorías', href: '/auditorias', icon: ClipboardCheck },
             { title: 'Escanear QR', href: '/escanear', icon: ScanLine },
+            { title: 'Movimientos', href: '/movimientos', icon: ArrowLeftRight },
             { title: 'Reportes', href: '/reportes', icon: FileBarChart },
         ],
     },

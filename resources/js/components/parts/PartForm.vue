@@ -40,6 +40,24 @@ const responsibleOptions = computed(() =>
     options.value.responsiblePeople.filter((r) => String(r.company_id) === String(form.company_id)).map((r) => ({ value: r.id, label: r.full_name })),
 );
 
+// Al cambiar de empresa, limpia sucursal/responsable que ya no correspondan.
+watch(
+    () => form.company_id,
+    (newCompanyId) => {
+        const branch = options.value.branches.find((b) => b.id === form.branch_id);
+
+        if (branch && String(branch.company_id) !== String(newCompanyId)) {
+            form.branch_id = '';
+        }
+
+        const responsible = options.value.responsiblePeople.find((r) => r.id === form.responsible_id);
+
+        if (responsible && String(responsible.company_id) !== String(newCompanyId)) {
+            form.responsible_id = '';
+        }
+    },
+);
+
 const brandDialogOpen = ref(false);
 function onBrandCreated(brand: { id: number; name: string }) {
     options.value.brands.push(brand);

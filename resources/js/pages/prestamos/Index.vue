@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { MoreHorizontal, Plus, UsersRound } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import Combobox from '@/components/Combobox.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import DatePicker from '@/components/DatePicker.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -64,6 +65,11 @@ defineOptions({
 const search = ref(props.filters.q ?? '');
 const status = ref(props.filters.status ?? 'all');
 const companyFilter = ref(props.filters.company_id ?? 'all');
+
+const companyComboOptions = computed(() => [
+    { value: 'all', label: 'Todas las empresas' },
+    ...props.companies.map((c) => ({ value: String(c.id), label: c.name })),
+]);
 
 function applyFilters() {
     router.get(
@@ -161,13 +167,14 @@ return;
                     <SelectItem value="cancelado">Cancelado</SelectItem>
                 </SelectContent>
             </Select>
-            <Select v-model="companyFilter" @update:model-value="applyFilters">
-                <SelectTrigger class="w-full lg:w-44"><SelectValue placeholder="Empresa" /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todas las empresas</SelectItem>
-                    <SelectItem v-for="c in companies" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
-                </SelectContent>
-            </Select>
+            <Combobox
+                v-model="companyFilter"
+                :options="companyComboOptions"
+                placeholder="Empresa"
+                search-placeholder="Buscar empresa..."
+                class="w-full lg:w-44"
+                @update:model-value="applyFilters"
+            />
         </FilterBar>
 
         <EmptyState

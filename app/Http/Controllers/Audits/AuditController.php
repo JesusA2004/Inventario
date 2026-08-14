@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -66,7 +67,23 @@ class AuditController extends Controller implements HasMiddleware
             'name' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $branch = Branch::findOrFail($data['branch_id']);
+        $branch = Branch::query()->whereKey($data['branch_id'])->firstOrFail();
+
+        if ($branch->company_id !== $data['company_id']) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'La sucursal seleccionada no pertenece a la empresa elegida.',
+            ]);
+        }
+
+        if ($data['department_id'] ?? null) {
+            $department = Department::query()->whereKey($data['department_id'])->firstOrFail();
+
+            if ($department->company_id !== null && $department->company_id !== $data['company_id']) {
+                throw ValidationException::withMessages([
+                    'department_id' => 'El área seleccionada no pertenece a la empresa elegida.',
+                ]);
+            }
+        }
 
         $audit = DB::transaction(function () use ($data, $branch, $request) {
             $audit = Audit::create([
