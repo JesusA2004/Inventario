@@ -7,12 +7,13 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
 /**
  * @implements FromCollection<int, Part>
  * @implements WithMapping<Part>
  */
-class PartsExport implements FromCollection, WithHeadings, WithMapping
+class PartsExport implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
     /**
      * @param  Collection<int, Part>  $parts
@@ -29,7 +30,12 @@ class PartsExport implements FromCollection, WithHeadings, WithMapping
 
     public function headings(): array
     {
-        return ['Clave interna', 'Pieza', 'Marca', 'N° de serie', 'Part Number', 'Estatus', 'Cantidad', 'Ensamblada', 'Activo relacionado', 'Empresa'];
+        return ['Clave interna', 'Pieza', 'Marca', 'N° de serie', 'Número de parte', 'Estatus', 'Cantidad', 'Ensamblada', 'Activo relacionado', 'Empresa'];
+    }
+
+    public function title(): string
+    {
+        return 'Datos';
     }
 
     /**

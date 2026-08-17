@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+require __DIR__.'/help.php';
 require __DIR__.'/catalogs.php';
 require __DIR__.'/assets.php';
 require __DIR__.'/labels.php';

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import DatePicker from '@/components/DatePicker.vue';
+import HelpTip from '@/components/HelpTip.vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -58,6 +60,7 @@ function submit() {
                 <div class="grid gap-2">
                     <Label>Fecha de revisión</Label>
                     <DatePicker v-model="form.reviewed_at" from-today />
+                    <InputError :message="form.errors.reviewed_at" />
                 </div>
                 <div class="grid gap-2">
                     <Label>Estado físico</Label>
@@ -67,18 +70,26 @@ function submit() {
                             <SelectItem v-for="option in physicalStatusOptions" :key="option" :value="option">{{ option }}</SelectItem>
                         </SelectContent>
                     </Select>
+                    <InputError :message="form.errors.physical_status" />
                 </div>
                 <div class="flex items-center justify-between rounded-lg border border-border p-3">
-                    <p class="text-sm font-medium">Ubicación correcta</p>
+                    <p class="flex items-center gap-1.5 text-sm font-medium">
+                        Ubicación correcta
+                        <HelpTip text="Desactívalo si al revisar el equipo notaste que está en una sucursal o área distinta a la registrada; después usa 'Cambiar ubicación' desde la ficha para corregirlo." />
+                    </p>
                     <Switch v-model="form.location_ok" />
                 </div>
                 <div class="flex items-center justify-between rounded-lg border border-border p-3">
-                    <p class="text-sm font-medium">Responsable correcto</p>
+                    <p class="flex items-center gap-1.5 text-sm font-medium">
+                        Responsable correcto
+                        <HelpTip text="Desactívalo si la persona registrada como responsable ya no es quien tiene el equipo; después usa 'Cambiar responsable' desde la ficha para corregirlo." />
+                    </p>
                     <Switch v-model="form.responsible_ok" />
                 </div>
                 <div class="grid gap-2">
                     <Label for="review-notes">Observaciones (opcional)</Label>
                     <Textarea id="review-notes" v-model="form.notes" rows="2" />
+                    <InputError :message="form.errors.notes" />
                 </div>
                 <DialogFooter>
                     <Button type="submit" :disabled="form.processing">

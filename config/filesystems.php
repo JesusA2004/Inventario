@@ -33,7 +33,12 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // No "serve" here on purpose: this disk holds private documents
+            // (facturas/documentos). Enabling it would auto-register a public,
+            // unauthenticated GET /storage/{path} route (Laravel's file-serving
+            // feature) that could leak them regardless of app-level auth checks.
+            // They're only ever reachable through the authenticated download
+            // route in AssetFileController.
             'throw' => false,
             'report' => false,
         ],

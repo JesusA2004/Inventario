@@ -6,6 +6,7 @@ import {
     Building2,
     ClipboardCheck,
     FileBarChart,
+    HelpCircle,
     Landmark,
     LayoutGrid,
     MapPin,
@@ -36,7 +37,10 @@ import type { NavGroup } from '@/types';
 const navGroups: NavGroup[] = [
     {
         title: 'Inicio',
-        items: [{ title: 'Panel', href: dashboard(), icon: LayoutGrid }],
+        items: [
+            { title: 'Panel', href: dashboard(), icon: LayoutGrid },
+            { title: 'Ayuda', href: '/ayuda', icon: HelpCircle },
+        ],
     },
     {
         title: 'Inventario',

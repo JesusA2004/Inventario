@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import Combobox from '@/components/Combobox.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FilterBar from '@/components/FilterBar.vue';
+import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Pager from '@/components/Pager.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -121,7 +122,11 @@ return;
     <Head title="Piezas y refacciones" />
 
     <div class="flex flex-col gap-6">
-        <PageHeader title="Piezas y refacciones" description="Componentes en almacén o ensamblados en un activo">
+        <PageHeader
+            title="Piezas y refacciones"
+            description="Componentes en almacén o ensamblados en un activo"
+            help-text="'Ensamblada' significa que la pieza forma parte física de un activo (RAM, SSD, cargador...) y aparece en su pestaña Piezas. Si no está ensamblada, existe suelta en almacén."
+        >
             <template #actions>
                 <Link href="/piezas/crear">
                     <Button>
@@ -212,7 +217,7 @@ return;
                     <div class="mt-3 space-y-1 text-sm text-muted-foreground">
                         <p v-if="part.company">{{ part.company.name }} <span v-if="part.branch"> · {{ part.branch.name }}</span></p>
                         <p v-if="part.brand">{{ part.brand.name }}</p>
-                        <p v-if="part.relatedAsset">
+                        <p v-if="part.relatedAsset?.public_id">
                             Vinculada a
                             <Link :href="`/activos/${part.relatedAsset.public_id}`" class="font-mono hover:underline">
                                 {{ part.relatedAsset.internal_code }}
@@ -239,10 +244,12 @@ return;
                 <div class="grid gap-2">
                     <Label for="part-reason">Motivo</Label>
                     <Textarea id="part-reason" v-model="decommissionForm.reason" rows="2" required />
+                    <InputError :message="decommissionForm.errors.reason" />
                 </div>
                 <div class="grid gap-2">
                     <Label for="part-decommission-notes">Observaciones (opcional)</Label>
                     <Textarea id="part-decommission-notes" v-model="decommissionForm.notes" rows="2" />
+                    <InputError :message="decommissionForm.errors.notes" />
                 </div>
                 <DialogFooter>
                     <Button type="submit" variant="destructive" :disabled="decommissionForm.processing">

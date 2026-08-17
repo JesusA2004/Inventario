@@ -16,13 +16,14 @@ import {
     UserCog,
     UsersRound,
 } from '@lucide/vue';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import ChangeLocationDialog from '@/components/assets/ChangeLocationDialog.vue';
 import ChangeResponsibleDialog from '@/components/assets/ChangeResponsibleDialog.vue';
 import DecommissionDialog from '@/components/assets/DecommissionDialog.vue';
 import RegisterReviewDialog from '@/components/assets/RegisterReviewDialog.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import LabelSizeDialog from '@/components/labels/LabelSizeDialog.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { LabelSizeKey, LabelSizesConfig } from '@/lib/labelSizes';
 
 type Person = { id: number; full_name: string } | null;
 
@@ -70,7 +72,7 @@ type AssetDetail = {
         id: number;
         type: string;
         type_label: string;
-        path: string;
+        url: string;
         original_name: string;
         uploader: string | null;
         created_at: string;
@@ -108,6 +110,11 @@ type AssetDetail = {
         public_id: string;
         name: string;
         internal_code: string;
+        brand: string | null;
+        part_number: string | null;
+        serial_number: string | null;
+        assembled: boolean;
+        quantity: number;
         status: { value: string; label: string; color: string };
     }[];
 };
@@ -122,7 +129,29 @@ const props = defineProps<{
         departments: { id: number; name: string }[];
         responsiblePeople: { id: number; full_name: string }[];
     };
+    labelSizes: LabelSizesConfig;
 }>();
+
+const labelSizeDialogOpen = ref(false);
+
+const labelPreviewAsset = computed(() => ({
+    type_name: (props.asset.assetType?.name ?? '').toUpperCase(),
+    internal_code: props.asset.internal_code,
+    serial_number: props.asset.serial_number,
+    company_name: props.asset.company?.name ?? '',
+    qr_image_url: `/activos/${props.asset.public_id}/qr`,
+}));
+
+function printLabel(payload: { size: LabelSizeKey; widthMm: number; heightMm: number }) {
+    const params = new URLSearchParams({ size: payload.size });
+
+    if (payload.size === 'custom') {
+        params.set('width_mm', String(payload.widthMm));
+        params.set('height_mm', String(payload.heightMm));
+    }
+
+    window.open(`/activos/${props.asset.public_id}/etiqueta?${params.toString()}`, '_blank');
+}
 
 const responsibleDialogOpen = ref(false);
 const locationDialogOpen = ref(false);
@@ -283,9 +312,7 @@ function formatDateTime(value: string): string {
                         <DropdownMenuItem as-child>
                             <Link :href="`/activos/${asset.public_id}/editar`">Editar</Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem as-child>
-                            <a :href="`/activos/${asset.public_id}/etiqueta`" target="_blank">Imprimir etiqueta</a>
-                        </DropdownMenuItem>
+                        <DropdownMenuItem @click="labelSizeDialogOpen = true">Imprimir etiqueta</DropdownMenuItem>
                         <DropdownMenuItem as-child>
                             <a :href="`/activos/${asset.public_id}/qr/descargar`">Descargar QR</a>
                         </DropdownMenuItem>
@@ -645,6 +672,27 @@ function formatDateTime(value: string): string {
                             <StatusBadge :label="part.status.label" :color="part.status.color" class="shrink-0" />
                         </div>
                         <p class="font-mono text-xs text-muted-foreground">{{ part.internal_code }}</p>
+                        <dl class="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
+                            <div v-if="part.brand">
+                                <dt class="text-muted-foreground">Marca</dt>
+                                <dd class="truncate font-medium text-foreground">{{ part.brand }}</dd>
+                            </div>
+                            <div v-if="part.part_number">
+                                <dt class="text-muted-foreground">Número de parte</dt>
+                                <dd class="truncate font-medium text-foreground">{{ part.part_number }}</dd>
+                            </div>
+                            <div v-if="part.serial_number">
+                                <dt class="text-muted-foreground">Serie</dt>
+                                <dd class="truncate font-medium text-foreground">{{ part.serial_number }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-muted-foreground">Cantidad</dt>
+                                <dd class="font-medium text-foreground">{{ part.quantity }}</dd>
+                            </div>
+                        </dl>
+                        <Badge :variant="part.assembled ? 'default' : 'outline'" class="mt-2">
+                            {{ part.assembled ? 'Ensamblada en este equipo' : 'No ensamblada' }}
+                        </Badge>
                     </Link>
                 </div>
                 <p class="text-xs text-muted-foreground">
@@ -711,7 +759,7 @@ function formatDateTime(value: string): string {
                         >
                             <Trash2 class="size-4" />
                         </button>
-                        <a :href="`/storage/${file.path}`" target="_blank" class="block pr-6">
+                        <a :href="file.url" target="_blank" class="block pr-6">
                             <Badge variant="outline" class="mb-2">{{
                                 file.type_label
                             }}</Badge>
@@ -740,12 +788,10 @@ function formatDateTime(value: string): string {
                                 Descargar QR PNG
                             </Button>
                         </a>
-                        <a :href="`/activos/${asset.public_id}/etiqueta`" target="_blank">
-                            <Button>
-                                <Printer class="mr-1 size-4" />
-                                Imprimir etiqueta
-                            </Button>
-                        </a>
+                        <Button @click="labelSizeDialogOpen = true">
+                            <Printer class="mr-1 size-4" />
+                            Imprimir etiqueta
+                        </Button>
                     </div>
                     <p class="max-w-sm text-xs text-muted-foreground">
                         Este código es permanente: seguirá funcionando aunque cambies la clave, marca, sucursal o responsable del activo.
@@ -783,5 +829,13 @@ function formatDateTime(value: string): string {
         :loading="reactivating"
         @update:open="(value) => (reactivateConfirmOpen = value)"
         @confirm="reactivate"
+    />
+    <LabelSizeDialog
+        v-model:open="labelSizeDialogOpen"
+        :config="labelSizes"
+        :count="1"
+        :preview-asset="labelPreviewAsset"
+        :show-columns="false"
+        @confirm="printLabel"
     />
 </template>

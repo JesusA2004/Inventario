@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import Combobox from '@/components/Combobox.vue';
+import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,29 +79,46 @@ function submit() {
 <template>
     <Head title="Nueva auditoría" />
 
-    <div class="mx-auto flex max-w-lg flex-col gap-6">
+    <div class="flex w-full max-w-4xl flex-col gap-6">
         <PageHeader title="Nueva auditoría" description="Selecciona el alcance del levantamiento físico" />
 
         <form class="space-y-4" @submit.prevent="submit">
-            <div class="grid gap-2">
-                <Label>Empresa</Label>
-                <Combobox
-                    v-model="form.company_id"
-                    :options="companies.map((c) => ({ value: c.id, label: c.name }))"
-                    placeholder="Selecciona una empresa"
-                />
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="grid gap-2">
+                    <Label>Empresa</Label>
+                    <Combobox
+                        v-model="form.company_id"
+                        :options="companies.map((c) => ({ value: c.id, label: c.name }))"
+                        placeholder="Selecciona una empresa"
+                    />
+                    <InputError :message="form.errors.company_id" />
+                </div>
+                <div class="grid gap-2">
+                    <Label>Sucursal</Label>
+                    <Combobox
+                        v-model="form.branch_id"
+                        :options="branchOptions"
+                        :placeholder="form.company_id ? 'Selecciona una sucursal' : 'Primero selecciona una empresa'"
+                        :disabled="!form.company_id"
+                    />
+                    <InputError :message="form.errors.branch_id" />
+                </div>
             </div>
-            <div class="grid gap-2">
-                <Label>Sucursal</Label>
-                <Combobox v-model="form.branch_id" :options="branchOptions" placeholder="Selecciona una sucursal" :disabled="!form.company_id" />
-            </div>
-            <div class="grid gap-2">
-                <Label>Área (opcional)</Label>
-                <Combobox v-model="form.department_id" :options="departmentOptions" placeholder="Toda la sucursal" :disabled="!form.company_id" />
-            </div>
-            <div class="grid gap-2">
-                <Label for="audit-name">Nombre (opcional)</Label>
-                <Input id="audit-name" v-model="form.name" placeholder="Se genera automáticamente si se deja vacío" />
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="grid gap-2">
+                    <Label>Área (opcional)</Label>
+                    <Combobox
+                        v-model="form.department_id"
+                        :options="departmentOptions"
+                        :placeholder="form.company_id ? 'Toda la sucursal' : 'Primero selecciona una empresa'"
+                        :disabled="!form.company_id"
+                    />
+                    <InputError :message="form.errors.department_id" />
+                </div>
+                <div class="grid gap-2">
+                    <Label for="audit-name">Nombre (opcional)</Label>
+                    <Input id="audit-name" v-model="form.name" placeholder="Se genera automáticamente si se deja vacío" />
+                </div>
             </div>
 
             <Button type="submit" :disabled="form.processing || !form.company_id || !form.branch_id">

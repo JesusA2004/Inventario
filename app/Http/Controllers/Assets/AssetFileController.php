@@ -13,13 +13,15 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Enum;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssetFileController extends Controller implements HasMiddleware
 {
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:editar-activos'),
+            new Middleware('permission:editar-activos', only: ['store', 'destroy']),
+            new Middleware('permission:ver-activos', only: ['download']),
         ];
     }
 
@@ -38,10 +40,16 @@ class AssetFileController extends Controller implements HasMiddleware
         ]);
 
         $file = $request->file('file');
-        $path = $file->store('assets/'.$asset->id.'/'.$data['type'], 'public');
+
+        // Las fotos siguen siendo públicas (se usan como miniatura en el
+        // listado); facturas y documentos van al disco privado, solo
+        // accesibles vía el endpoint autenticado download().
+        $disk = $data['type'] === AssetFileType::Foto->value ? 'public' : 'local';
+        $path = $file->store('assets/'.$asset->id.'/'.$data['type'], $disk);
 
         $asset->files()->create([
             'type' => $data['type'],
+            'disk' => $disk,
             'path' => $path,
             'original_name' => $file->getClientOriginalName(),
             'mime' => $file->getClientMimeType(),
@@ -64,5 +72,19 @@ class AssetFileController extends Controller implements HasMiddleware
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Archivo eliminado.']);
 
         return back();
+    }
+
+    /**
+     * Único punto de descarga para facturas/documentos privados. Verifica
+     * autenticación (vía middleware), permiso para ver activos, y que el
+     * archivo realmente pertenece al activo solicitado en la URL, antes de
+     * transmitir el contenido — nunca se revela la ruta física en disco.
+     */
+    public function download(Asset $asset, AssetFile $file): StreamedResponse
+    {
+        abort_unless($file->asset_id === $asset->id, 404);
+        abort_unless(Storage::disk($file->disk)->exists($file->path), 404);
+
+        return Storage::disk($file->disk)->download($file->path, $file->original_name);
     }
 }

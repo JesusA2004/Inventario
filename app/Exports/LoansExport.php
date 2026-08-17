@@ -7,12 +7,13 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
 /**
  * @implements FromCollection<int, Loan>
  * @implements WithMapping<Loan>
  */
-class LoansExport implements FromCollection, WithHeadings, WithMapping
+class LoansExport implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
     /**
      * @param  Collection<int, Loan>  $loans
@@ -30,6 +31,11 @@ class LoansExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return ['Activo', 'Empresa', 'Asignado a', 'Entregó', 'Recibió', 'Fecha de salida', 'Devolución esperada', 'Devolución real', 'Estatus', 'Motivo'];
+    }
+
+    public function title(): string
+    {
+        return 'Datos';
     }
 
     /**

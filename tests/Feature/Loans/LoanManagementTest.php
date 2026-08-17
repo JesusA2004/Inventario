@@ -43,6 +43,43 @@ test('a loan can be created for an asset and it appears on its ficha', function 
     expect($this->asset->movements()->where('type', MovementType::Prestamo)->exists())->toBeTrue();
 });
 
+test('the expected return date cannot be before the loan date, and the error is a plain Spanish sentence', function () {
+    $response = $this->actingAs($this->user)->post('/prestamos', [
+        'asset_id' => $this->asset->id,
+        'loan_date' => now()->toDateString(),
+        'expected_return_date' => now()->subDay()->toDateString(),
+        'origin' => 'index',
+    ]);
+
+    $response->assertSessionHasErrors('expected_return_date');
+    expect(session('errors')->get('expected_return_date'))->toBe([
+        'La fecha de devolución esperada debe ser igual o posterior a la fecha de salida del préstamo.',
+    ]);
+
+    expect($this->asset->loans()->count())->toBe(0);
+});
+
+test('the actual return date cannot be before the loan date', function () {
+    $loan = $this->asset->loans()->create([
+        'company_id' => $this->company->id,
+        'assigned_to_responsible_id' => $this->responsible->id,
+        'loan_date' => now()->subDays(2),
+        'status' => LoanStatus::Prestado,
+        'created_by' => $this->user->id,
+    ]);
+
+    $response = $this->actingAs($this->user)->post("/prestamos/{$loan->id}/devolver", [
+        'actual_return_date' => now()->subDays(5)->toDateString(),
+    ]);
+
+    $response->assertSessionHasErrors('actual_return_date');
+    expect(session('errors')->get('actual_return_date'))->toBe([
+        'La fecha de devolución debe ser igual o posterior a la fecha de salida del préstamo.',
+    ]);
+
+    expect($loan->fresh()->status)->toBe(LoanStatus::Prestado);
+});
+
 test('a loan can be returned', function () {
     $loan = $this->asset->loans()->create([
         'company_id' => $this->company->id,

@@ -19,6 +19,7 @@ use App\Models\Department;
 use App\Models\ResponsiblePerson;
 use App\Services\AssetCodeService;
 use App\Services\AssetMovementService;
+use App\Services\LabelSizeResolver;
 use App\Services\QrCodeService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -54,11 +56,18 @@ class AssetController extends Controller implements HasMiddleware
      * Lightweight asset lookup used by other modules (préstamos, piezas)
      * to link a record to an existing asset without loading the full list.
      */
+    /**
+     * Buscador rápido de activos (usado por el selector de Préstamos y el
+     * "activo relacionado" de Piezas). Sin texto todavía muestra un listado
+     * inicial en vez de quedar vacío, para que el usuario pueda elegir
+     * navegando en vez de forzarlo a escribir primero.
+     */
     public function search(Request $request): JsonResponse
     {
         $search = $request->string('q')->toString();
 
         $assets = Asset::query()
+            ->with('latestPhoto')
             ->when($request->boolean('in_inventory_only'), fn ($query) => $query->where('in_inventory', true))
             ->when($search, function ($query, $search) {
                 $query->where(function ($inner) use ($search) {
@@ -67,8 +76,18 @@ class AssetController extends Controller implements HasMiddleware
                 });
             })
             ->orderBy('internal_code')
-            ->limit(20)
-            ->get(['id', 'public_id', 'internal_code', 'name', 'company_id']);
+            ->limit($search ? 20 : 24)
+            ->get(['id', 'public_id', 'internal_code', 'name', 'company_id', 'asset_type_id'])
+            ->load('assetType:id,name')
+            ->map(fn (Asset $asset) => [
+                'id' => $asset->id,
+                'public_id' => $asset->public_id,
+                'internal_code' => $asset->internal_code,
+                'name' => $asset->name,
+                'company_id' => $asset->company_id,
+                'asset_type' => $asset->assetType?->name,
+                'photo_url' => $asset->latestPhoto ? Storage::url($asset->latestPhoto->path) : null,
+            ]);
 
         return response()->json($assets);
     }
@@ -102,6 +121,7 @@ class AssetController extends Controller implements HasMiddleware
                 'brand_id', 'responsible_id', 'status', 'in_inventory', 'from', 'to', 'sort', 'direction',
             ]),
             'filterOptions' => $this->filterOptions(),
+            'labelSizes' => LabelSizeResolver::sharedProps(),
         ]);
     }
 
@@ -232,16 +252,21 @@ class AssetController extends Controller implements HasMiddleware
         $asset->load([
             'company', 'branch', 'department', 'assetType', 'brand',
             'currentResponsible', 'deliveredByResponsible', 'creator:id,name',
-            'files.uploader:id,name',
+            'files.uploader:id,name', 'files.asset:id,public_id',
             'latestPhoto',
             'movements.user:id,name',
             'reviews.user:id,name',
             'loans.assignedTo', 'loans.deliveredBy', 'loans.receivedBy',
-            'parts',
+            'parts.brand',
         ]);
 
         return Inertia::render('activos/Show', [
-            'asset' => new AssetResource($asset),
+            // ->resolve() es obligatorio aquí: Inertia trata un JsonResource
+            // "crudo" como Responsable y lo envuelve en {"data": {...}} (igual
+            // que una respuesta JSON normal de Laravel), dejando todas las
+            // props del activo anidadas bajo asset.data.* en vez de asset.*
+            // directamente, que es lo que Show.vue espera.
+            'asset' => (new AssetResource($asset))->resolve(),
             'statusOptions' => AssetStatus::options(),
             'decommissionReasons' => DecommissionReason::options(),
             'qrUrl' => $this->qrCodeService->publicUrl($asset),
@@ -253,12 +278,13 @@ class AssetController extends Controller implements HasMiddleware
                 })->orderBy('name')->get(['id', 'name']),
                 'responsiblePeople' => ResponsiblePerson::query()->active()->where('company_id', $asset->company_id)->orderBy('full_name')->get(['id', 'full_name']),
             ],
+            'labelSizes' => LabelSizeResolver::sharedProps(),
         ]);
     }
 
     public function edit(Asset $asset): Response
     {
-        $asset->load(['files']);
+        $asset->load(['files.asset:id,public_id']);
 
         return Inertia::render('activos/Edit', [
             'asset' => $asset,

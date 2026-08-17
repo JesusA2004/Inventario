@@ -92,6 +92,12 @@ function applySearch(value: string) {
     applyFilters();
 }
 
+function clearFilters() {
+    search.value = '';
+    companyFilter.value = 'all';
+    applyFilters();
+}
+
 const activeFiltersCount = computed(() =>
     companyFilter.value && companyFilter.value !== 'all' ? 1 : 0,
 );
@@ -204,6 +210,7 @@ function destroy() {
             search-placeholder="Buscar por nombre o código..."
             :active-filters-count="activeFiltersCount"
             @update:search="applySearch"
+            @clear="clearFilters"
         >
             <Select v-model="companyFilter" @update:model-value="applyFilters">
                 <SelectTrigger class="w-full lg:w-48">

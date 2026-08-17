@@ -60,7 +60,11 @@ function formatDate(value: string): string {
     <Head title="Auditorías" />
 
     <div class="flex flex-col gap-6">
-        <PageHeader title="Auditorías" description="Levantamientos físicos del inventario">
+        <PageHeader
+            title="Auditorías"
+            description="Levantamientos físicos del inventario"
+            help-text="Crea una auditoría por sucursal y usa Escanear QR para marcar cada activo como encontrado o reportar una diferencia. Solo se puede escanear dentro de una auditoría 'En progreso'."
+        >
             <template #actions>
                 <Link href="/auditorias/crear">
                     <Button>

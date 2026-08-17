@@ -1,6 +1,7 @@
 <?php
 
 use App\Exports\AssetsExport;
+use App\Exports\Reports\ReportExport;
 use App\Models\Asset;
 use App\Models\AssetType;
 use App\Models\Branch;
@@ -52,8 +53,11 @@ test('the inventory report can be filtered by branch, type, brand and status', f
 
     Excel::assertDownloaded(
         'reporte-inventario-'.now()->format('Y-m-d').'.xlsx',
-        function (AssetsExport $export) {
-            return $export->collection()->pluck('internal_code')->toArray() === [$this->asset->internal_code];
+        function (ReportExport $export) {
+            /** @var AssetsExport $dataSheet */
+            $dataSheet = $export->sheets()['Datos'];
+
+            return $dataSheet->collection()->pluck('internal_code')->toArray() === [$this->asset->internal_code];
         },
     );
 });
@@ -80,8 +84,40 @@ test('the live inventory data endpoint respects filters and matches the export',
 
     Excel::assertDownloaded(
         'reporte-inventario-'.now()->format('Y-m-d').'.xlsx',
-        fn (AssetsExport $export) => $export->collection()->pluck('internal_code')->toArray() === [$this->asset->internal_code],
+        fn (ReportExport $export) => $export->sheets()['Datos']->collection()->pluck('internal_code')->toArray() === [$this->asset->internal_code],
     );
+});
+
+test('every report type has both excel and pdf exports that render', function () {
+    foreach (['inventario', 'bajas', 'prestamos', 'piezas', 'auditorias'] as $type) {
+        $this->actingAs($this->user)->get("/reportes/{$type}/excel")->assertOk();
+        $this->actingAs($this->user)->get("/reportes/{$type}/pdf")->assertOk();
+    }
+});
+
+test('the pdf for every report type includes a kpi summary, not just a plain table', function () {
+    foreach (['inventario', 'bajas', 'prestamos', 'piezas', 'auditorias'] as $type) {
+        $response = $this->actingAs($this->user)->get("/reportes/{$type}/pdf");
+
+        $response->assertOk();
+        expect($response->headers->get('content-type'))->toContain('application/pdf');
+    }
+});
+
+test('the excel export for every report type includes a Datos sheet and a Resumen sheet', function () {
+    Excel::fake();
+
+    foreach (['inventario', 'bajas', 'prestamos', 'piezas', 'auditorias'] as $type) {
+        $filename = "reporte-{$type}-".now()->format('Y-m-d').'.xlsx';
+
+        $this->actingAs($this->user)->get("/reportes/{$type}/excel")->assertOk();
+
+        Excel::assertDownloaded($filename, function (ReportExport $export) {
+            $sheets = $export->sheets();
+
+            return array_key_exists('Datos', $sheets) && array_key_exists('Resumen', $sheets);
+        });
+    }
 });
 
 test('the reports summary endpoint returns kpis for bajas, prestamos, piezas and auditorias', function () {

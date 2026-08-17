@@ -7,12 +7,13 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
 /**
  * @implements FromCollection<int, Asset>
  * @implements WithMapping<Asset>
  */
-class DecommissionedAssetsExport implements FromCollection, WithHeadings, WithMapping
+class DecommissionedAssetsExport implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
     /**
      * @param  Collection<int, Asset>  $assets
@@ -30,6 +31,11 @@ class DecommissionedAssetsExport implements FromCollection, WithHeadings, WithMa
     public function headings(): array
     {
         return ['Clave interna', 'Dispositivo', 'Empresa', 'Sucursal', 'Fecha de baja', 'Motivo', 'Observaciones'];
+    }
+
+    public function title(): string
+    {
+        return 'Datos';
     }
 
     /**

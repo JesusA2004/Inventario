@@ -178,7 +178,7 @@ class LoanController extends Controller implements HasMiddleware
     public function returnLoan(Request $request, Loan $loan): RedirectResponse
     {
         $data = $request->validate([
-            'actual_return_date' => ['required', 'date'],
+            'actual_return_date' => ['required', 'date', 'after_or_equal:'.$loan->loan_date->toDateString()],
             'return_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 

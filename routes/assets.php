@@ -22,6 +22,7 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
 
     Route::post('activos/{asset}/archivos', [AssetFileController::class, 'store'])->name('assets.files.store');
     Route::delete('activos/{asset}/archivos/{file}', [AssetFileController::class, 'destroy'])->name('assets.files.destroy');
+    Route::get('activos/{asset}/archivos/{file}/descargar', [AssetFileController::class, 'download'])->name('assets.files.download');
 
     Route::get('activos/{asset}/qr', [AssetQrController::class, 'show'])->name('assets.qr');
     Route::get('activos/{asset}/qr/descargar', [AssetQrController::class, 'download'])->name('assets.qr.download');

@@ -28,6 +28,46 @@ beforeEach(function () {
     $this->brand = Brand::create(['name' => 'Dell', 'active' => true]);
 });
 
+test('the asset search endpoint returns an initial listing when no query is typed yet', function () {
+    $user = createAdmin();
+
+    $asset = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+    ]);
+
+    $response = $this->actingAs($user)->get('/activos/buscar');
+
+    $response->assertOk();
+    $ids = collect($response->json())->pluck('id');
+    expect($ids)->toContain($asset->id);
+});
+
+test('the asset search endpoint still filters by query when one is typed', function () {
+    $user = createAdmin();
+
+    $asset = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'internal_code' => 'CML-LAP-321',
+    ]);
+
+    Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'internal_code' => 'CML-LAP-999',
+    ]);
+
+    $response = $this->actingAs($user)->get('/activos/buscar?q=321');
+
+    $response->assertOk();
+    $codes = collect($response->json())->pluck('internal_code')->all();
+    expect($codes)->toBe([$asset->internal_code]);
+});
+
 test('an asset can be created and gets a permanent public_id', function () {
     $user = createAdmin();
 

@@ -4,6 +4,7 @@ import { CheckSquare, Download, QrCode, Square } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FilterBar from '@/components/FilterBar.vue';
+import LabelSizeDialog from '@/components/labels/LabelSizeDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Pager from '@/components/Pager.vue';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import type { LabelColumns, LabelSizeKey, LabelSizesConfig } from '@/lib/labelSizes';
 import type { AssetListItem, Paginated } from '@/types/assets';
 
 type FilterOptions = {
@@ -27,6 +29,7 @@ const props = defineProps<{
     assets: Paginated<AssetListItem>;
     filters: Record<string, string | undefined>;
     filterOptions: FilterOptions;
+    labelSizes: LabelSizesConfig;
 }>();
 
 defineOptions({
@@ -61,6 +64,18 @@ function toggleRecent() {
     applyFilters();
 }
 
+const activeFiltersCount = computed(
+    () => (companyFilter.value !== 'all' ? 1 : 0) + (branchFilter.value !== 'all' ? 1 : 0) + (recentOnly.value ? 1 : 0),
+);
+
+function clearFilters() {
+    search.value = '';
+    companyFilter.value = 'all';
+    branchFilter.value = 'all';
+    recentOnly.value = false;
+    applyFilters();
+}
+
 const selected = ref<Set<number>>(new Set());
 
 function toggle(id: number) {
@@ -84,7 +99,23 @@ function clearSelection() {
 
 const allOnPageSelected = computed(() => props.assets.data.length > 0 && props.assets.data.every((a) => selected.value.has(a.id)));
 
-function printSelected(template: 'standard' | 'compact' = 'standard') {
+const sizeDialogOpen = ref(false);
+
+const firstSelectedAsset = computed(() => props.assets.data.find((asset) => selected.value.has(asset.id)) ?? null);
+
+const previewAsset = computed(() =>
+    firstSelectedAsset.value
+        ? {
+              type_name: (firstSelectedAsset.value.assetType?.name ?? '').toUpperCase(),
+              internal_code: firstSelectedAsset.value.internal_code,
+              serial_number: firstSelectedAsset.value.serial_number,
+              company_name: firstSelectedAsset.value.company?.name ?? '',
+              qr_image_url: `/activos/${firstSelectedAsset.value.public_id}/qr`,
+          }
+        : null,
+);
+
+function printSelected(payload: { size: LabelSizeKey; columns: LabelColumns; widthMm: number; heightMm: number }) {
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/etiquetas/pdf';
@@ -96,11 +127,20 @@ function printSelected(template: 'standard' | 'compact' = 'standard') {
     csrf.value = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
     form.appendChild(csrf);
 
-    const templateInput = document.createElement('input');
-    templateInput.type = 'hidden';
-    templateInput.name = 'template';
-    templateInput.value = template;
-    form.appendChild(templateInput);
+    const fields: Record<string, string> = {
+        template: payload.columns === 3 ? 'compact' : 'standard',
+        size: payload.size,
+        width_mm: String(payload.widthMm),
+        height_mm: String(payload.heightMm),
+    };
+
+    for (const [name, value] of Object.entries(fields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+    }
 
     selected.value.forEach((id) => {
         const input = document.createElement('input');
@@ -120,20 +160,26 @@ function printSelected(template: 'standard' | 'compact' = 'standard') {
     <Head title="Etiquetas QR" />
 
     <div class="flex flex-col gap-6">
-        <PageHeader title="Etiquetas QR" description="Genera e imprime etiquetas con código QR para pegar en los equipos">
+        <PageHeader
+            title="Etiquetas QR"
+            description="Genera e imprime etiquetas con código QR para pegar en los equipos"
+            help-text="Selecciona uno o varios activos y elige el tamaño de etiqueta antes de generar el PDF: pequeño para accesorios, grande para equipo voluminoso. El QR es permanente aunque edites los datos del activo."
+        >
             <template #actions>
-                <Button variant="outline" :disabled="selected.size === 0" @click="printSelected('compact')">
-                    <QrCode class="mr-1 size-4" />
-                    3 columnas
-                </Button>
-                <Button :disabled="selected.size === 0" @click="printSelected('standard')">
+                <Button :disabled="selected.size === 0" @click="sizeDialogOpen = true">
                     <Download class="mr-1 size-4" />
-                    Imprimir seleccionados ({{ selected.size }})
+                    Generar etiquetas ({{ selected.size }})
                 </Button>
             </template>
         </PageHeader>
 
-        <FilterBar :search="search" search-placeholder="Buscar activo..." @update:search="applySearch">
+        <FilterBar
+            :search="search"
+            search-placeholder="Buscar activo..."
+            :active-filters-count="activeFiltersCount"
+            @update:search="applySearch"
+            @clear="clearFilters"
+        >
             <Select v-model="companyFilter" @update:model-value="applyFilters">
                 <SelectTrigger class="w-full lg:w-44"><SelectValue placeholder="Empresa" /></SelectTrigger>
                 <SelectContent>
@@ -158,6 +204,14 @@ function printSelected(template: 'standard' | 'compact' = 'standard') {
                 <Button variant="ghost" size="sm" :disabled="selected.size === 0" @click="clearSelection">Limpiar selección</Button>
             </template>
         </FilterBar>
+
+        <LabelSizeDialog
+            v-model:open="sizeDialogOpen"
+            :config="labelSizes"
+            :count="selected.size"
+            :preview-asset="previewAsset"
+            @confirm="printSelected"
+        />
 
         <EmptyState
             v-if="assets.data.length === 0"

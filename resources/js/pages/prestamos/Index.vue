@@ -7,6 +7,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import DatePicker from '@/components/DatePicker.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FilterBar from '@/components/FilterBar.vue';
+import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Pager from '@/components/Pager.vue';
 import StatCard from '@/components/StatCard.vue';
@@ -15,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -44,7 +46,7 @@ type Loan = {
     loan_date: string;
     expected_return_date: string | null;
     actual_return_date: string | null;
-    asset: { id: number; public_id: string; internal_code: string; name: string };
+    asset: { id: number; public_id: string; internal_code: string; name: string } | null;
     company: { id: number; name: string } | null;
     assignedTo: string | null;
     deliveredBy: string | null;
@@ -111,6 +113,12 @@ const returnForm = useForm({
     return_notes: '',
 });
 
+function openReturnDialog(loan: Loan) {
+    returnForm.clearErrors();
+    returnForm.reset();
+    returnDialogLoan.value = loan;
+}
+
 function submitReturn() {
     if (!returnDialogLoan.value) {
 return;
@@ -149,7 +157,11 @@ return;
     <Head title="Préstamos" />
 
     <div class="flex flex-col gap-6">
-        <PageHeader title="Préstamos" description="Entradas y salidas temporales de equipo">
+        <PageHeader
+            title="Préstamos"
+            description="Entradas y salidas temporales de equipo"
+            help-text="Un préstamo queda vencido cuando pasa la fecha de devolución esperada y sigue en estatus 'Prestado'. Regístralo desde aquí o directamente desde la ficha del activo."
+        >
             <template #actions>
                 <Link href="/prestamos/crear">
                     <Button>
@@ -212,10 +224,11 @@ return;
             <div v-for="loan in loans.data" :key="loan.id" class="rounded-xl border border-border bg-card p-4">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <Link :href="`/activos/${loan.asset.public_id}`" class="font-mono text-sm font-medium hover:underline">
+                        <Link v-if="loan.asset?.public_id" :href="`/activos/${loan.asset.public_id}`" class="font-mono text-sm font-medium hover:underline">
                             {{ loan.asset.internal_code }}
                         </Link>
-                        <p class="text-sm text-muted-foreground">{{ loan.asset.name }}</p>
+                        <p v-else class="font-mono text-sm font-medium text-muted-foreground">Activo no disponible</p>
+                        <p v-if="loan.asset" class="text-sm text-muted-foreground">{{ loan.asset.name }}</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <StatusBadge :label="loan.status.label" :color="loan.status.color" />
@@ -226,7 +239,7 @@ return;
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem @click="returnDialogLoan = loan">Registrar devolución</DropdownMenuItem>
+                                <DropdownMenuItem @click="openReturnDialog(loan)">Registrar devolución</DropdownMenuItem>
                                 <DropdownMenuItem class="text-destructive focus:text-destructive" @click="cancelDialogLoan = loan">
                                     Cancelar préstamo
                                 </DropdownMenuItem>
@@ -266,15 +279,20 @@ return;
         <DialogContent class="sm:max-w-sm">
             <DialogHeader>
                 <DialogTitle>Registrar devolución</DialogTitle>
+                <DialogDescription v-if="returnDialogLoan">
+                    Salió el {{ formatDate(returnDialogLoan.loan_date) }}. La fecha de devolución debe ser igual o posterior a esa fecha.
+                </DialogDescription>
             </DialogHeader>
             <form class="space-y-4" @submit.prevent="submitReturn">
                 <div class="grid gap-2">
                     <Label>Fecha de devolución</Label>
                     <DatePicker v-model="returnForm.actual_return_date" from-today />
+                    <InputError :message="returnForm.errors.actual_return_date" />
                 </div>
                 <div class="grid gap-2">
                     <Label for="return-notes">Observaciones (opcional)</Label>
                     <Textarea id="return-notes" v-model="returnForm.return_notes" rows="2" />
+                    <InputError :message="returnForm.errors.return_notes" />
                 </div>
                 <DialogFooter>
                     <Button type="submit" :disabled="returnForm.processing">

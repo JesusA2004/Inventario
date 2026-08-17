@@ -159,10 +159,16 @@ return [
     'uuid' => 'El campo :attribute debe ser un UUID válido.',
 
     'custom' => [
-        //
+        'expected_return_date' => [
+            'after_or_equal' => 'La fecha de devolución esperada debe ser igual o posterior a la fecha de salida del préstamo.',
+        ],
+        'actual_return_date' => [
+            'after_or_equal' => 'La fecha de devolución debe ser igual o posterior a la fecha de salida del préstamo.',
+        ],
     ],
 
     'attributes' => [
+        // Comunes / catálogos
         'name' => 'nombre',
         'email' => 'correo electrónico',
         'password' => 'contraseña',
@@ -171,6 +177,28 @@ return [
         'company_id' => 'empresa',
         'branch_id' => 'sucursal',
         'department_id' => 'área',
+        'code' => 'código',
+        'active' => 'estado',
+        'color' => 'color',
+        'icon' => 'ícono',
+        'legal_name' => 'razón social',
+        'address' => 'dirección',
+        'city' => 'ciudad',
+        'state' => 'estado (entidad)',
+        'phone' => 'teléfono',
+        'position' => 'puesto',
+        'role' => 'rol',
+        'default_company_id' => 'empresa predeterminada',
+        'system_name' => 'nombre del sistema',
+        'qr_base_url' => 'dominio de códigos QR',
+        'internal_code_format' => 'formato de clave interna',
+        'label_template' => 'plantilla de etiquetas',
+        'logo' => 'logo',
+
+        // Activos
+        'asset_id' => 'activo',
+        'asset_ids' => 'activos seleccionados',
+        'asset_public_id' => 'activo',
         'asset_type_id' => 'tipo de activo',
         'brand_id' => 'marca',
         'internal_code' => 'clave interna',
@@ -181,10 +209,49 @@ return [
         'delivered_by_responsible_id' => 'responsable de entrega',
         'acquired_at' => 'fecha de alta',
         'purchase_date' => 'fecha de compra',
+        'last_reviewed_at' => 'fecha de última revisión',
         'notes' => 'observaciones',
+        'components' => 'componentes',
+        'specifications' => 'especificaciones',
+        'invoice_url' => 'URL de factura',
+        'invoice_file' => 'archivo de factura',
+        'photos' => 'fotografías',
+        'photos.*' => 'fotografía',
+        'in_inventory' => '¿sigue en inventario?',
+        'comment' => 'comentario',
+        'reason' => 'motivo',
+        'date' => 'fecha',
+        'reviewed_at' => 'fecha de revisión',
+        'physical_status' => 'estado físico',
+        'location_ok' => 'ubicación correcta',
+        'responsible_ok' => 'responsable correcto',
+
+        // Piezas
+        'related_asset_id' => 'activo relacionado',
+        'responsible_id' => 'responsable',
+        'part_number' => 'número de parte',
+        'quantity' => 'cantidad',
+        'assembled' => 'ensamblada',
+        'needs_label' => 'requiere etiqueta QR',
+
+        // Préstamos
+        'loan_date' => 'fecha de salida del préstamo',
+        'expected_return_date' => 'fecha de devolución esperada',
+        'actual_return_date' => 'fecha de devolución',
+        'return_notes' => 'observaciones de devolución',
+        'assigned_to_responsible_id' => 'responsable asignado',
+        'received_by_responsible_id' => 'responsable de recepción',
+        'delivered_confirmed' => 'confirmación de quien entrega',
+        'received_confirmed' => 'confirmación de quien recibe',
+
+        // Personas
         'full_name' => 'nombre completo',
-        'code' => 'código',
-        'active' => 'estado',
+
+        // Etiquetas QR
+        'template' => 'plantilla',
+        'size' => 'tamaño',
+        'width_mm' => 'ancho',
+        'height_mm' => 'alto',
     ],
 
 ];

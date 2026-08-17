@@ -6,6 +6,7 @@ import AssetCard from '@/components/assets/AssetCard.vue';
 import Combobox from '@/components/Combobox.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FilterBar from '@/components/FilterBar.vue';
+import LabelSizeDialog from '@/components/labels/LabelSizeDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Pager from '@/components/Pager.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -27,6 +28,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { getJson } from '@/lib/http';
+import type { LabelColumns, LabelSizeKey, LabelSizesConfig } from '@/lib/labelSizes';
 import type { AssetListItem, Paginated, StatusOption } from '@/types/assets';
 
 type FilterOptions = {
@@ -43,6 +45,7 @@ const props = defineProps<{
     assets: Paginated<AssetListItem>;
     filters: Record<string, string | undefined>;
     filterOptions: FilterOptions;
+    labelSizes: LabelSizesConfig;
 }>();
 
 defineOptions({
@@ -263,8 +266,29 @@ function submitAssetIdsForm(action: string, extraFields: Record<string, string> 
     document.body.removeChild(form);
 }
 
-function generateLabels(template: 'standard' | 'compact' = 'standard') {
-    submitAssetIdsForm('/etiquetas/pdf', { template });
+const sizeDialogOpen = ref(false);
+
+const firstSelectedAsset = computed(() => props.assets.data.find((asset) => selected.value.has(asset.id)) ?? null);
+
+const previewAsset = computed(() =>
+    firstSelectedAsset.value
+        ? {
+              type_name: (firstSelectedAsset.value.assetType?.name ?? '').toUpperCase(),
+              internal_code: firstSelectedAsset.value.internal_code,
+              serial_number: firstSelectedAsset.value.serial_number,
+              company_name: firstSelectedAsset.value.company?.name ?? '',
+              qr_image_url: `/activos/${firstSelectedAsset.value.public_id}/qr`,
+          }
+        : null,
+);
+
+function generateLabels(payload: { size: LabelSizeKey; columns: LabelColumns; widthMm: number; heightMm: number }) {
+    submitAssetIdsForm('/etiquetas/pdf', {
+        template: payload.columns === 3 ? 'compact' : 'standard',
+        size: payload.size,
+        width_mm: String(payload.widthMm),
+        height_mm: String(payload.heightMm),
+    });
 }
 
 function downloadQrZip() {
@@ -279,6 +303,7 @@ function downloadQrZip() {
         <PageHeader
             title="Activos"
             description="Inventario completo de equipos de TI"
+            help-text="Un activo es un equipo completo (laptop, monitor, impresora). Sus componentes internos o accesorios sueltos se registran como piezas y se vinculan aquí desde la pestaña Piezas."
         >
             <template #actions>
                 <div class="flex items-center rounded-lg border border-border p-0.5">
@@ -348,16 +373,20 @@ function downloadQrZip() {
                     <FileArchive class="mr-1 size-4" />
                     Descargar QR (.zip)
                 </Button>
-                <Button variant="outline" size="sm" :disabled="selected.size === 0" @click="generateLabels('compact')">
-                    <QrCode class="mr-1 size-4" />
-                    3 columnas
-                </Button>
-                <Button size="sm" :disabled="selected.size === 0" @click="generateLabels('standard')">
+                <Button size="sm" :disabled="selected.size === 0" @click="sizeDialogOpen = true">
                     <Download class="mr-1 size-4" />
                     Generar etiquetas ({{ selected.size }})
                 </Button>
             </div>
         </div>
+
+        <LabelSizeDialog
+            v-model:open="sizeDialogOpen"
+            :config="labelSizes"
+            :count="selected.size"
+            :preview-asset="previewAsset"
+            @confirm="generateLabels"
+        />
 
         <FilterBar
             :search="search"

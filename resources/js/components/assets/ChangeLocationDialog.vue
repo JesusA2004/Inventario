@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import Combobox from '@/components/Combobox.vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -50,14 +51,17 @@ function submit() {
                 <div class="grid gap-2">
                     <Label>Sucursal</Label>
                     <Combobox v-model="form.branch_id" :options="branches.map((b) => ({ value: b.id, label: b.name }))" />
+                    <InputError :message="form.errors.branch_id" />
                 </div>
                 <div class="grid gap-2">
                     <Label>Área (opcional)</Label>
                     <Combobox v-model="form.department_id" :options="departments.map((d) => ({ value: d.id, label: d.name }))" placeholder="Sin área" />
+                    <InputError :message="form.errors.department_id" />
                 </div>
                 <div class="grid gap-2">
                     <Label for="location-comment">Observación (opcional)</Label>
                     <Textarea id="location-comment" v-model="form.comment" rows="2" />
+                    <InputError :message="form.errors.comment" />
                 </div>
                 <DialogFooter>
                     <Button type="submit" :disabled="form.processing">

@@ -231,7 +231,7 @@ return '—';
                             <TableCell class="text-sm text-muted-foreground whitespace-nowrap">{{ formatDate(movement.created_at) }}</TableCell>
                             <TableCell>
                                 <a
-                                    v-if="movement.asset"
+                                    v-if="movement.asset?.public_id"
                                     :href="`/activos/${movement.asset.public_id}`"
                                     class="inline-flex items-center gap-1 font-mono text-sm text-primary hover:underline"
                                 >

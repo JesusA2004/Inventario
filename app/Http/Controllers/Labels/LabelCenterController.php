@@ -9,6 +9,7 @@ use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Services\AssetLabelPdfService;
+use App\Services\LabelSizeResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -18,7 +19,10 @@ use Inertia\Response;
 
 class LabelCenterController extends Controller implements HasMiddleware
 {
-    public function __construct(private readonly AssetLabelPdfService $labelPdfService) {}
+    public function __construct(
+        private readonly AssetLabelPdfService $labelPdfService,
+        private readonly LabelSizeResolver $sizeResolver,
+    ) {}
 
     public static function middleware(): array
     {
@@ -44,15 +48,19 @@ class LabelCenterController extends Controller implements HasMiddleware
                 'branches' => Branch::query()->orderBy('name')->get(['id', 'name', 'company_id']),
                 'departments' => Department::query()->orderBy('name')->get(['id', 'name', 'company_id']),
             ],
+            'labelSizes' => LabelSizeResolver::sharedProps(),
         ]);
     }
 
     public function pdf(Request $request): \Symfony\Component\HttpFoundation\Response
     {
-        $request->validate([
+        $data = $request->validate([
             'asset_ids' => ['nullable', 'array'],
             'asset_ids.*' => ['integer'],
             'template' => ['nullable', 'string', 'in:standard,compact'],
+            'size' => ['nullable', 'string', 'in:small,medium,large,custom'],
+            'width_mm' => ['required_if:size,custom', 'nullable', 'numeric', 'min:'.LabelSizeResolver::MIN_WIDTH_MM, 'max:'.LabelSizeResolver::MAX_WIDTH_MM],
+            'height_mm' => ['required_if:size,custom', 'nullable', 'numeric', 'min:'.LabelSizeResolver::MIN_HEIGHT_MM, 'max:'.LabelSizeResolver::MAX_HEIGHT_MM],
         ]);
 
         $query = $request->filled('asset_ids')
@@ -63,8 +71,23 @@ class LabelCenterController extends Controller implements HasMiddleware
 
         abort_if($assets->isEmpty(), 422, 'Selecciona al menos un activo para generar las etiquetas.');
 
+        $template = $request->string('template', 'standard')->toString();
+        $size = $data['size'] ?? 'medium';
+        $columns = $template === 'compact' ? 3 : 2;
+
+        // Defensa en el servidor: aunque el diálogo ya evita elegir
+        // combinaciones incompatibles, se vuelve a validar aquí para que un
+        // POST manual no pueda generar etiquetas cortadas o con el QR
+        // ilegible.
+        $width = $size === 'custom' ? (float) $data['width_mm'] : LabelSizeResolver::PRESETS[$size]['width'];
+        abort_unless(
+            $this->sizeResolver->fitsColumns($width, $columns),
+            422,
+            "El tamaño seleccionado no cabe en {$columns} columnas sin cortarse. Máximo ".$this->sizeResolver->maxWidthForColumns($columns).'mm de ancho.',
+        );
+
         return $this->labelPdfService
-            ->build($assets, $request->string('template', 'standard')->toString())
+            ->build($assets, $template, $size, isset($data['width_mm']) ? (float) $data['width_mm'] : null, isset($data['height_mm']) ? (float) $data['height_mm'] : null)
             ->stream('etiquetas-qr-'.now()->format('Y-m-d-His').'.pdf');
     }
 

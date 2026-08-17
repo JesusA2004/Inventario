@@ -4,6 +4,7 @@ import { Search, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import Combobox from '@/components/Combobox.vue';
 import DatePicker from '@/components/DatePicker.vue';
+import HelpTip from '@/components/HelpTip.vue';
 import InputError from '@/components/InputError.vue';
 import QuickCreateBrandDialog from '@/components/QuickCreateBrandDialog.vue';
 import { Button } from '@/components/ui/button';
@@ -113,14 +114,17 @@ function clearAsset() {
     <div class="space-y-8">
         <section class="space-y-4">
             <h2 class="text-sm font-semibold text-foreground">Identificación</h2>
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div class="grid gap-2">
                     <Label for="part-name">Pieza / componente</Label>
                     <Input id="part-name" v-model="form.name" placeholder="Ej. Memoria RAM 8GB" />
                     <InputError :message="form.errors.name" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="part-code">Clave interna</Label>
+                    <Label for="part-code">
+                        Clave interna
+                        <HelpTip text="El identificador que TÚ le asignas a la pieza dentro de este sistema para llevar su control (ej. CML-PZ-001). Es distinto al número de parte y al número de serie del fabricante." />
+                    </Label>
                     <Input id="part-code" v-model="form.internal_code" class="font-mono uppercase" placeholder="Ej. CML-PZ-001" />
                     <InputError :message="form.errors.internal_code" />
                 </div>
@@ -132,11 +136,17 @@ function clearAsset() {
                     </div>
                 </div>
                 <div class="grid gap-2">
-                    <Label for="part-number">Part Number</Label>
-                    <Input id="part-number" v-model="form.part_number" placeholder="Opcional" />
+                    <Label for="part-number">
+                        Número de parte
+                        <HelpTip text="El código que el FABRICANTE le puso a este modelo de pieza (a veces impreso como 'P/N' en la etiqueta o la caja). Sirve para identificar el modelo exacto al buscar un repuesto igual, no es un número único por unidad." />
+                    </Label>
+                    <Input id="part-number" v-model="form.part_number" placeholder="Ej. KVR16N11-8 (opcional)" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="part-serial">Número de serie</Label>
+                    <Label for="part-serial">
+                        Número de serie
+                        <HelpTip text="El número único de ESTA unidad en particular, asignado por el fabricante (a veces impreso como 'S/N'). A diferencia del número de parte, dos piezas del mismo modelo nunca comparten número de serie." />
+                    </Label>
                     <Input id="part-serial" v-model="form.serial_number" placeholder="Opcional" />
                 </div>
                 <div class="grid gap-2">
@@ -156,11 +166,19 @@ function clearAsset() {
                 </div>
                 <div class="grid gap-2">
                     <Label>Sucursal (opcional)</Label>
-                    <Combobox v-model="form.branch_id" :options="branchOptions" placeholder="Sin sucursal" :disabled="!form.company_id" />
+                    <Combobox
+                        v-model="form.branch_id"
+                        :options="branchOptions"
+                        :placeholder="form.company_id ? 'Sin sucursal' : 'Primero selecciona una empresa'"
+                        :disabled="!form.company_id"
+                    />
                 </div>
             </div>
             <div class="grid gap-2">
-                <Label>Activo relacionado (opcional)</Label>
+                <Label>
+                    Activo relacionado (opcional)
+                    <HelpTip text="Liga esta pieza al equipo del que forma parte o al que acompaña. Combinado con 'Ensamblada' (abajo), define si se muestra como componente integrado en la ficha de ese activo." />
+                </Label>
                 <div v-if="selectedAsset" class="flex items-center justify-between rounded-lg border border-border bg-card p-3">
                     <div>
                         <p class="font-mono text-sm font-medium">{{ selectedAsset.internal_code }}</p>
@@ -187,7 +205,12 @@ function clearAsset() {
             </div>
             <div class="grid gap-2">
                 <Label>Responsable (opcional)</Label>
-                <Combobox v-model="form.responsible_id" :options="responsibleOptions" placeholder="Sin responsable" :disabled="!form.company_id" />
+                <Combobox
+                    v-model="form.responsible_id"
+                    :options="responsibleOptions"
+                    :placeholder="form.company_id ? 'Sin responsable' : 'Primero selecciona una empresa'"
+                    :disabled="!form.company_id"
+                />
             </div>
         </section>
 
@@ -214,11 +237,17 @@ function clearAsset() {
                     <Switch v-model="form.in_inventory" />
                 </div>
                 <div class="flex items-center justify-between rounded-lg border border-border p-3">
-                    <p class="text-sm font-medium">Ensamblada</p>
+                    <p class="flex items-center gap-1.5 text-sm font-medium">
+                        Ensamblada
+                        <HelpTip text="Actívalo cuando la pieza forma parte física de un activo (ej. la RAM de una laptop). Vincúlala en 'Activo relacionado' para que aparezca en la pestaña Piezas de ese equipo." />
+                    </p>
                     <Switch v-model="form.assembled" />
                 </div>
                 <div class="flex items-center justify-between rounded-lg border border-border p-3">
-                    <p class="text-sm font-medium">Requiere etiqueta QR</p>
+                    <p class="flex items-center gap-1.5 text-sm font-medium">
+                        Requiere etiqueta QR
+                        <HelpTip text="Actívalo solo si esta pieza necesita su propio código QR físico (por ejemplo, una refacción cara que se mueve mucho). La mayoría de las piezas ensambladas no lo necesitan." />
+                    </p>
                     <Switch v-model="form.needs_label" />
                 </div>
             </div>

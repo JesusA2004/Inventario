@@ -7,12 +7,13 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
 /**
  * @implements FromCollection<int, Asset>
  * @implements WithMapping<Asset>
  */
-class AssetsExport implements FromCollection, WithHeadings, WithMapping
+class AssetsExport implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
     /**
      * @param  Collection<int, Asset>  $assets
@@ -34,6 +35,11 @@ class AssetsExport implements FromCollection, WithHeadings, WithMapping
             'Empresa', 'Sucursal', 'Área', 'Responsable actual', 'Estatus',
             '¿Sigue en inventario?', 'Fecha de alta', 'Última revisión',
         ];
+    }
+
+    public function title(): string
+    {
+        return 'Datos';
     }
 
     /**

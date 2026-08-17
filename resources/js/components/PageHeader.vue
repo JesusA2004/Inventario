@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import HelpTip from '@/components/HelpTip.vue';
+
 withDefaults(
     defineProps<{
         title: string;
         description?: string;
+        helpText?: string;
     }>(),
     {},
 );
@@ -13,9 +16,12 @@ withDefaults(
         class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
     >
         <div class="space-y-1">
-            <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-                {{ title }}
-            </h1>
+            <div class="flex items-center gap-1.5">
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground">
+                    {{ title }}
+                </h1>
+                <HelpTip v-if="helpText" :text="helpText" />
+            </div>
             <p v-if="description" class="text-sm text-muted-foreground">
                 {{ description }}
             </p>

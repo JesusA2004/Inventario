@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronDown, Sparkles } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import Combobox from '@/components/Combobox.vue';
 import DatePicker from '@/components/DatePicker.vue';
+import HelpTip from '@/components/HelpTip.vue';
 import InputError from '@/components/InputError.vue';
 import QuickCreateAssetTypeDialog from '@/components/QuickCreateAssetTypeDialog.vue';
 import QuickCreateBranchDialog from '@/components/QuickCreateBranchDialog.vue';
@@ -263,7 +264,7 @@ function onInvoiceFileChange(event: Event) {
                         <Combobox
                             v-model="form.branch_id"
                             :options="branchOptions"
-                            placeholder="Selecciona una sucursal"
+                            :placeholder="form.company_id ? 'Selecciona una sucursal' : 'Primero selecciona una empresa'"
                             :disabled="!form.company_id"
                             class="flex-1"
                         />
@@ -272,7 +273,7 @@ function onInvoiceFileChange(event: Event) {
                             variant="outline"
                             size="icon"
                             :disabled="!form.company_id"
-                            title="Nueva sucursal"
+                            :title="form.company_id ? 'Nueva sucursal' : 'Primero selecciona una empresa'"
                             @click="branchDialogOpen = true"
                         >
                             +
@@ -420,6 +421,9 @@ function onInvoiceFileChange(event: Event) {
                             Generar
                         </Button>
                     </div>
+                    <p v-if="!form.company_id || !form.asset_type_id" class="text-xs text-muted-foreground">
+                        Escribe la clave a mano o selecciona empresa y tipo de activo arriba para generarla automáticamente.
+                    </p>
                     <InputError :message="form.errors.internal_code" />
                 </div>
             </div>
@@ -428,6 +432,9 @@ function onInvoiceFileChange(event: Event) {
         <!-- Asignación -->
         <section class="space-y-4">
             <h2 class="text-sm font-semibold text-foreground">Asignación</h2>
+            <p v-if="!form.company_id" class="text-xs text-muted-foreground">
+                Selecciona una empresa en "Ubicación" para poder elegir quién tiene el equipo y quién lo entregó.
+            </p>
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="grid gap-2">
                     <Label>Responsable actual</Label>
@@ -435,7 +442,7 @@ function onInvoiceFileChange(event: Event) {
                         <Combobox
                             v-model="form.current_responsible_id"
                             :options="responsibleOptions"
-                            placeholder="Opcional (almacenado)"
+                            :placeholder="form.company_id ? 'Opcional (almacenado)' : 'Primero selecciona una empresa'"
                             :disabled="!form.company_id"
                             class="flex-1"
                         />
@@ -444,7 +451,7 @@ function onInvoiceFileChange(event: Event) {
                             variant="outline"
                             size="icon"
                             :disabled="!form.company_id"
-                            title="Nuevo responsable"
+                            :title="form.company_id ? 'Nuevo responsable' : 'Primero selecciona una empresa'"
                             @click="responsibleDialogOpen = 'current'"
                         >
                             +
@@ -452,12 +459,15 @@ function onInvoiceFileChange(event: Event) {
                     </div>
                 </div>
                 <div class="grid gap-2">
-                    <Label>Entregó / responsable de revisión</Label>
+                    <Label>
+                        Entregó / responsable de revisión
+                        <HelpTip text="Quién hizo la entrega física del equipo o realizó la última revisión, no necesariamente quien lo usa. Suele ser alguien de sistemas o del área que lo resguarda." />
+                    </Label>
                     <div class="flex gap-2">
                         <Combobox
                             v-model="form.delivered_by_responsible_id"
                             :options="responsibleOptions"
-                            placeholder="Opcional"
+                            :placeholder="form.company_id ? 'Opcional' : 'Primero selecciona una empresa'"
                             :disabled="!form.company_id"
                             class="flex-1"
                         />
@@ -466,7 +476,7 @@ function onInvoiceFileChange(event: Event) {
                             variant="outline"
                             size="icon"
                             :disabled="!form.company_id"
-                            title="Nuevo responsable"
+                            :title="form.company_id ? 'Nuevo responsable' : 'Primero selecciona una empresa'"
                             @click="responsibleDialogOpen = 'delivered'"
                         >
                             +
@@ -564,7 +574,10 @@ function onInvoiceFileChange(event: Event) {
             </CollapsibleTrigger>
             <CollapsibleContent class="space-y-4 border-t border-border p-4">
                 <div class="grid gap-2">
-                    <Label for="asset-components">Componentes / incluye</Label>
+                    <Label for="asset-components">
+                        Componentes / incluye
+                        <HelpTip text="Accesorios sueltos que se entregan junto con el equipo (cargador, mochila, mouse). Si quieres darles seguimiento individual con su propio QR, regístralos como piezas en vez de solo anotarlos aquí." />
+                    </Label>
                     <Textarea
                         id="asset-components"
                         v-model="form.components"
@@ -573,7 +586,10 @@ function onInvoiceFileChange(event: Event) {
                     />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="asset-specs">Especificaciones</Label>
+                    <Label for="asset-specs">
+                        Especificaciones
+                        <HelpTip text="Ficha técnica del equipo (procesador, memoria, almacenamiento). Es texto libre, solo para consulta." />
+                    </Label>
                     <Textarea
                         id="asset-specs"
                         v-model="form.specifications"

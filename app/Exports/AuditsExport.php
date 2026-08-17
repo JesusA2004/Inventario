@@ -8,12 +8,13 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
 /**
  * @implements FromCollection<int, Audit>
  * @implements WithMapping<Audit>
  */
-class AuditsExport implements FromCollection, WithHeadings, WithMapping
+class AuditsExport implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
     /**
      * @param  Collection<int, Audit>  $audits
@@ -31,6 +32,11 @@ class AuditsExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return ['Nombre', 'Empresa', 'Sucursal', 'Área', 'Estatus', 'Iniciada', 'Finalizada', 'Esperados', 'Encontrados', 'No encontrados'];
+    }
+
+    public function title(): string
+    {
+        return 'Datos';
     }
 
     /**

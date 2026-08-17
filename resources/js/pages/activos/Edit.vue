@@ -14,7 +14,7 @@ type AssetFile = {
     type: string;
     original_name: string;
     mime: string | null;
-    path: string;
+    url: string;
 };
 
 type Asset = {
@@ -121,7 +121,7 @@ function destroyFile() {
 <template>
     <Head :title="`Editar ${asset.internal_code}`" />
 
-    <div class="mx-auto flex max-w-6xl flex-col gap-6 pb-24">
+    <div class="flex w-full flex-col gap-6 pb-24">
         <PageHeader
             :title="`Editar ${asset.internal_code}`"
             :description="asset.name"
@@ -141,7 +141,7 @@ function destroyFile() {
                     class="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
                 >
                     <a
-                        :href="`/storage/${file.path}`"
+                        :href="file.url"
                         target="_blank"
                         class="flex items-center gap-2 truncate hover:underline"
                     >

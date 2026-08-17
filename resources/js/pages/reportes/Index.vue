@@ -311,7 +311,11 @@ const statusColorMap: Record<string, string> = {
     <Head title="Reportes" />
 
     <div class="flex flex-col gap-6">
-        <PageHeader title="Reportes" description="Analiza el inventario en tiempo real y exporta exactamente lo que ves" />
+        <PageHeader
+            title="Reportes"
+            description="Analiza el inventario en tiempo real y exporta exactamente lo que ves"
+            help-text="Cada reporte se exporta con los mismos filtros que ves en pantalla. El PDF incluye KPIs y gráficas; el Excel trae una hoja 'Datos' y otra 'Resumen' con esos mismos indicadores."
+        />
 
         <section class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:p-6">
             <div class="flex flex-wrap items-center justify-between gap-2">

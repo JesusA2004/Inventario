@@ -71,7 +71,7 @@ function submit() {
 <template>
     <Head :title="`Editar ${part.internal_code}`" />
 
-    <div class="mx-auto flex max-w-4xl flex-col gap-6 pb-24">
+    <div class="flex w-full flex-col gap-6 pb-24">
         <PageHeader :title="`Editar ${part.internal_code}`" :description="part.name" />
         <PartForm :form="form" :form-options="formOptions" :initial-related-asset="part.relatedAsset" />
     </div>

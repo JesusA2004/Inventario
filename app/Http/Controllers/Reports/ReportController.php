@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Reports;
 
 use App\Enums\AssetStatus;
 use App\Enums\AuditItemStatus;
+use App\Enums\AuditStatus;
 use App\Enums\DecommissionReason;
 use App\Enums\LoanStatus;
 use App\Enums\PartStatus;
@@ -12,6 +13,8 @@ use App\Exports\AuditsExport;
 use App\Exports\DecommissionedAssetsExport;
 use App\Exports\LoansExport;
 use App\Exports\PartsExport;
+use App\Exports\Reports\ReportExport;
+use App\Exports\Reports\ReportSummarySheet;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
 use App\Models\AssetType;
@@ -72,16 +75,40 @@ class ReportController extends Controller implements HasMiddleware
 
     public function excel(string $type, Request $request): BinaryFileResponse
     {
+        abort_unless(array_key_exists($type, self::TITLES), 404);
+
         $filename = "reporte-{$type}-".now()->format('Y-m-d').'.xlsx';
 
-        return match ($type) {
-            'inventario' => Excel::download(new AssetsExport($this->inventoryQuery($request)->get()), $filename),
-            'bajas' => Excel::download(new DecommissionedAssetsExport($this->decommissionedQuery($request)->get()), $filename),
-            'prestamos' => Excel::download(new LoansExport($this->loansQuery($request)->get()), $filename),
-            'piezas' => Excel::download(new PartsExport($this->partsQuery($request)->get()), $filename),
-            'auditorias' => Excel::download(new AuditsExport($this->auditsQuery($request)->get()), $filename),
-            default => abort(404),
+        $records = match ($type) {
+            'inventario' => $this->inventoryQuery($request)->get(),
+            'bajas' => $this->decommissionedQuery($request)->get(),
+            'prestamos' => $this->loansQuery($request)->get(),
+            'piezas' => $this->partsQuery($request)->get(),
+            'auditorias' => $this->auditsQuery($request)->get(),
         };
+
+        $dataSheet = match ($type) {
+            'inventario' => new AssetsExport($records),
+            'bajas' => new DecommissionedAssetsExport($records),
+            'prestamos' => new LoansExport($records),
+            'piezas' => new PartsExport($records),
+            'auditorias' => new AuditsExport($records),
+        };
+
+        // Además de la hoja "Datos" (idéntica a la de siempre), se agrega
+        // "Resumen" con los mismos KPIs/filtros/desglose que ya se ven en
+        // pantalla y en el PDF, para que las tres salidas cuenten lo mismo.
+        $summarySheet = new ReportSummarySheet(
+            reportTitle: self::TITLES[$type],
+            generatedAt: now()->translatedFormat('d \d\e F \d\e Y, H:i'),
+            generatedBy: Auth::user()->name,
+            filtersSummary: $this->filtersSummary($request),
+            kpis: $this->pdfKpis($type, $request),
+            breakdown: $this->pdfBreakdown($type, $request),
+            total: $records->count(),
+        );
+
+        return Excel::download(new ReportExport($dataSheet, $summarySheet), $filename);
     }
 
     public function pdf(string $type, Request $request): \Illuminate\Http\Response
@@ -181,6 +208,45 @@ class ReportController extends Controller implements HasMiddleware
             'bajas' => [
                 'title' => 'Bajas por motivo',
                 'items' => $this->buildSummary($request)['bajas']['byReason'],
+            ],
+            'prestamos' => [
+                'title' => 'Préstamos por estatus',
+                'items' => $this->loansQuery($request)
+                    ->reorder()
+                    ->select('status', DB::raw('count(*) as total'))
+                    ->groupBy('status')
+                    ->orderByDesc('total')
+                    ->get()
+                    ->map(fn ($row) => [
+                        'label' => ($row->status instanceof LoanStatus ? $row->status : LoanStatus::tryFrom((string) $row->status))?->label() ?? (string) $row->status,
+                        'total' => (int) $row->getAttribute('total'),
+                    ]),
+            ],
+            'piezas' => [
+                'title' => 'Piezas por estatus',
+                'items' => $this->partsQuery($request)
+                    ->reorder()
+                    ->select('status', DB::raw('count(*) as total'))
+                    ->groupBy('status')
+                    ->orderByDesc('total')
+                    ->get()
+                    ->map(fn ($row) => [
+                        'label' => ($row->status instanceof PartStatus ? $row->status : PartStatus::tryFrom((string) $row->status))?->label() ?? (string) $row->status,
+                        'total' => (int) $row->getAttribute('total'),
+                    ]),
+            ],
+            'auditorias' => [
+                'title' => 'Auditorías por estatus',
+                'items' => $this->auditsQuery($request)
+                    ->reorder()
+                    ->select('status', DB::raw('count(*) as total'))
+                    ->groupBy('status')
+                    ->orderByDesc('total')
+                    ->get()
+                    ->map(fn ($row) => [
+                        'label' => ($row->status instanceof AuditStatus ? $row->status : AuditStatus::tryFrom((string) $row->status))?->label() ?? (string) $row->status,
+                        'total' => (int) $row->getAttribute('total'),
+                    ]),
             ],
             default => null,
         };
@@ -353,15 +419,22 @@ class ReportController extends Controller implements HasMiddleware
     {
         $bajas = [
             'total' => $this->decommissionedQuery($request)->count(),
+            // reorder() es necesario porque decommissionedQuery() ya trae un
+            // orderByDesc('decommissioned_at') propio de su uso como listado;
+            // al agregar con groupBy() esa columna deja de ser válida en el
+            // ORDER BY bajo sql_mode=only_full_group_by (MySQL estricto).
             'byReason' => $this->decommissionedQuery($request)
+                ->reorder()
                 ->select('decommission_reason', DB::raw('count(*) as total'))
                 ->groupBy('decommission_reason')
+                ->orderByDesc('total')
                 ->get()
                 ->map(fn ($row) => [
                     'label' => DecommissionReason::tryFrom((string) $row->decommission_reason)?->label() ?? 'Sin motivo',
                     'total' => (int) $row->getAttribute('total'),
                 ]),
             'byCompany' => $this->decommissionedQuery($request)
+                ->reorder()
                 ->join('companies', 'companies.id', '=', 'assets.company_id')
                 ->select('companies.name', DB::raw('count(*) as total'))
                 ->groupBy('companies.name')

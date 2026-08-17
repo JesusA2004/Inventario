@@ -3,6 +3,7 @@ import { Head, Link, router, setLayoutProps, useForm } from '@inertiajs/vue3';
 import { QrCode } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import InputError from '@/components/InputError.vue';
 import StatCard from '@/components/StatCard.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
@@ -190,10 +191,12 @@ function finishAudit() {
                             </SelectItem>
                         </SelectContent>
                     </Select>
+                    <InputError :message="markForm.errors.status" />
                 </div>
                 <div class="grid gap-2">
                     <Label for="mark-comment">Comentario (opcional)</Label>
                     <Textarea id="mark-comment" v-model="markForm.comment" rows="2" />
+                    <InputError :message="markForm.errors.comment" />
                 </div>
                 <DialogFooter>
                     <Button type="submit" :disabled="markForm.processing">
