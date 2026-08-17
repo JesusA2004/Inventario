@@ -7,12 +7,16 @@ use App\Enums\DecommissionReason;
 use App\Enums\MovementType;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
+use App\Models\Branch;
+use App\Models\Department;
+use App\Models\ResponsiblePerson;
 use App\Services\AssetMovementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class AssetActionController extends Controller implements HasMiddleware
@@ -33,6 +37,19 @@ class AssetActionController extends Controller implements HasMiddleware
             'current_responsible_id' => ['nullable', 'integer', 'exists:responsible_people,id'],
             'comment' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        // El frontend ya filtra la lista de responsables por empresa, pero
+        // eso no impide un POST manipulado: el backend nunca debe confiar
+        // solo en eso.
+        if (! empty($data['current_responsible_id'])) {
+            $responsible = ResponsiblePerson::find((int) $data['current_responsible_id']);
+
+            if ($responsible && $responsible->company_id !== $asset->company_id) {
+                throw ValidationException::withMessages([
+                    'current_responsible_id' => 'El responsable seleccionado no pertenece a la empresa del activo.',
+                ]);
+            }
+        }
 
         $original = $asset->getAttributes();
         $asset->update(['current_responsible_id' => $data['current_responsible_id'] ?? null]);
@@ -55,6 +72,24 @@ class AssetActionController extends Controller implements HasMiddleware
             'comment' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        $branch = Branch::find((int) $data['branch_id']);
+
+        if ($branch && $branch->company_id !== $asset->company_id) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'La sucursal seleccionada no pertenece a la empresa del activo.',
+            ]);
+        }
+
+        if (! empty($data['department_id'])) {
+            $department = Department::find((int) $data['department_id']);
+
+            if ($department && $department->company_id !== null && $department->company_id !== $asset->company_id) {
+                throw ValidationException::withMessages([
+                    'department_id' => 'El área seleccionada no pertenece a la empresa del activo.',
+                ]);
+            }
+        }
+
         $original = $asset->getAttributes();
         $asset->update([
             'branch_id' => $data['branch_id'],
@@ -74,7 +109,11 @@ class AssetActionController extends Controller implements HasMiddleware
     public function review(Request $request, Asset $asset): RedirectResponse
     {
         $data = $request->validate([
-            'reviewed_at' => ['required', 'date'],
+            'reviewed_at' => [
+                'required',
+                'date',
+                ...($asset->acquired_at ? ['after_or_equal:'.$asset->acquired_at->toDateString()] : []),
+            ],
             'physical_status' => ['required', 'string', 'max:100'],
             'location_ok' => ['boolean'],
             'responsible_ok' => ['boolean'],
@@ -106,7 +145,11 @@ class AssetActionController extends Controller implements HasMiddleware
     public function decommission(Request $request, Asset $asset): RedirectResponse
     {
         $data = $request->validate([
-            'date' => ['required', 'date'],
+            'date' => [
+                'required',
+                'date',
+                ...($asset->acquired_at ? ['after_or_equal:'.$asset->acquired_at->toDateString()] : []),
+            ],
             'reason' => ['required', new Enum(DecommissionReason::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);

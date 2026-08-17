@@ -12,6 +12,7 @@ use App\Models\Company;
 use App\Models\Loan;
 use App\Models\ResponsiblePerson;
 use App\Services\AssetMovementService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,7 +37,7 @@ class LoanController extends Controller implements HasMiddleware
 
     public function index(Request $request): Response
     {
-        $loans = Loan::query()
+        $loans = $this->baseQuery($request)
             ->with(['asset:id,public_id,internal_code,name', 'company:id,name', 'assignedTo:id,full_name', 'deliveredBy:id,full_name', 'receivedBy:id,full_name'])
             ->when($request->string('q')->toString(), function ($query, $search) {
                 $query->whereHas('asset', function ($inner) use ($search) {
@@ -51,7 +52,6 @@ class LoanController extends Controller implements HasMiddleware
                     $query->where('status', $status);
                 }
             })
-            ->when($request->integer('company_id'), fn ($query, $value) => $query->where('company_id', $value))
             ->orderByDesc('loan_date')
             ->paginate(20)
             ->withQueryString()
@@ -62,10 +62,24 @@ class LoanController extends Controller implements HasMiddleware
             'filters' => $request->only(['q', 'status', 'company_id']),
             'companies' => Company::query()->orderBy('name')->get(['id', 'name']),
             'stats' => [
-                'active' => Loan::query()->where('status', LoanStatus::Prestado)->count(),
-                'overdue' => Loan::query()->where('status', LoanStatus::Prestado)->where('expected_return_date', '<', now())->count(),
+                'active' => $this->baseQuery($request)->where('status', LoanStatus::Prestado)->count(),
+                'overdue' => $this->baseQuery($request)->where('status', LoanStatus::Prestado)->where('expected_return_date', '<', now())->count(),
             ],
         ]);
+    }
+
+    /**
+     * Query base compartida por el listado y las tarjetas de KPIs (activos /
+     * vencidos): antes las tarjetas contaban globalmente aunque la tabla
+     * estuviera filtrada por empresa, así que al filtrar "MR INSIGHT" las
+     * tarjetas seguían mostrando el total de todas las empresas.
+     *
+     * @return Builder<Loan>
+     */
+    private function baseQuery(Request $request): Builder
+    {
+        return Loan::query()
+            ->when($request->integer('company_id'), fn ($query, $value) => $query->where('company_id', $value));
     }
 
     public function create(Request $request): Response
@@ -109,6 +123,12 @@ class LoanController extends Controller implements HasMiddleware
         $loan = DB::transaction(function () use ($data, $request) {
             $asset = Asset::query()->whereKey($data['asset_id'])->lockForUpdate()->firstOrFail();
 
+            if (! $asset->in_inventory || $asset->status === AssetStatus::Baja) {
+                throw ValidationException::withMessages([
+                    'asset_id' => 'Este activo está dado de baja y no se puede prestar.',
+                ]);
+            }
+
             $hasActiveLoan = Loan::query()
                 ->where('asset_id', $asset->id)
                 ->where('status', LoanStatus::Prestado)
@@ -129,7 +149,7 @@ class LoanController extends Controller implements HasMiddleware
                     continue;
                 }
 
-                $responsible = ResponsiblePerson::find($data[$field]);
+                $responsible = ResponsiblePerson::find((int) $data[$field]);
 
                 if ($responsible && $responsible->company_id !== $asset->company_id) {
                     throw ValidationException::withMessages([
@@ -182,11 +202,23 @@ class LoanController extends Controller implements HasMiddleware
             'return_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $loan->update([
-            'status' => LoanStatus::Devuelto,
-            'actual_return_date' => $data['actual_return_date'],
-            'return_notes' => $data['return_notes'] ?? null,
-        ]);
+        // Bloquea el renglón para que dos devoluciones simultáneas del mismo
+        // préstamo (doble clic, dos pestañas) no generen dos movimientos.
+        DB::transaction(function () use ($loan, $data) {
+            $locked = Loan::query()->whereKey($loan->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== LoanStatus::Prestado) {
+                throw ValidationException::withMessages([
+                    'actual_return_date' => 'Este préstamo ya no está activo (estatus: '.$locked->status->label().'), no se puede registrar una devolución.',
+                ]);
+            }
+
+            $locked->update([
+                'status' => LoanStatus::Devuelto,
+                'actual_return_date' => $data['actual_return_date'],
+                'return_notes' => $data['return_notes'] ?? null,
+            ]);
+        });
 
         $asset = Asset::query()->whereKey($loan->asset_id)->firstOrFail();
 
@@ -203,7 +235,17 @@ class LoanController extends Controller implements HasMiddleware
 
     public function cancel(Loan $loan): RedirectResponse
     {
-        $loan->update(['status' => LoanStatus::Cancelado]);
+        DB::transaction(function () use ($loan) {
+            $locked = Loan::query()->whereKey($loan->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== LoanStatus::Prestado) {
+                throw ValidationException::withMessages([
+                    'status' => 'Este préstamo ya no está activo (estatus: '.$locked->status->label().'), no se puede cancelar.',
+                ]);
+            }
+
+            $locked->update(['status' => LoanStatus::Cancelado]);
+        });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Préstamo cancelado.']);
 

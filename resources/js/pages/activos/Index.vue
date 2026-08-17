@@ -183,15 +183,51 @@ const exportUrl = computed(() => {
 const viewMode = ref<'cards' | 'table'>('cards');
 
 // Selección para generar etiquetas QR en lote, directamente desde el listado.
+// 'ids': un conjunto explícito de activos marcados uno por uno (o "toda la
+// página"). 'all_filtered': el usuario pidió "los N resultados filtrados" —
+// no se guarda una lista de IDs, solo se recuerda el modo; al generar el
+// PDF/ZIP se vuelven a mandar los filtros actuales y el backend vuelve a
+// correr la misma consulta, así que funciona sin importar cuántos sean.
 const qrMode = ref(false);
+const selectionMode = ref<'ids' | 'all_filtered'>('ids');
 const selected = ref<Set<number>>(new Set());
 
 function toggleQrMode() {
     qrMode.value = !qrMode.value;
+    selectionMode.value = 'ids';
     selected.value = new Set();
 }
 
-function toggleSelect(id: number) {
+function currentFilterParams(): Record<string, string | undefined> {
+    const params: Record<string, string | undefined> = { q: search.value || undefined };
+
+    for (const [key, value] of Object.entries(filterState.value)) {
+        params[key] = value !== 'all' ? value : undefined;
+    }
+
+    return params;
+}
+
+/**
+ * Si estamos en modo "todos los filtrados" y el usuario toca un checkbox
+ * puntual, hay que materializar esa selección abstracta en IDs concretos
+ * antes de poder quitar uno solo.
+ */
+async function materializeAllFilteredSelection() {
+    const result = await getJson<{ ids: number[]; total: number }>('/activos/ids-filtrados', currentFilterParams());
+    selectionMode.value = 'ids';
+    selected.value = new Set(result.ids);
+}
+
+function isSelected(id: number): boolean {
+    return selectionMode.value === 'all_filtered' || selected.value.has(id);
+}
+
+async function toggleSelect(id: number) {
+    if (selectionMode.value === 'all_filtered') {
+        await materializeAllFilteredSelection();
+    }
+
     if (selected.value.has(id)) {
         selected.value.delete(id);
     } else {
@@ -202,38 +238,30 @@ function toggleSelect(id: number) {
 }
 
 const allOnPageSelected = computed(
-    () => props.assets.data.length > 0 && props.assets.data.every((a) => selected.value.has(a.id)),
+    () =>
+        props.assets.data.length > 0 &&
+        (selectionMode.value === 'all_filtered' || props.assets.data.every((a) => selected.value.has(a.id))),
 );
 
 function selectAllOnPage() {
+    selectionMode.value = 'ids';
     props.assets.data.forEach((asset) => selected.value.add(asset.id));
     selected.value = new Set(selected.value);
 }
 
 function clearSelection() {
+    selectionMode.value = 'ids';
     selected.value = new Set();
 }
 
-const selectingAllFiltered = ref(false);
-
-async function selectAllFiltered() {
-    selectingAllFiltered.value = true;
-
-    try {
-        const params: Record<string, string | undefined> = { q: search.value || undefined };
-
-        for (const [key, value] of Object.entries(filterState.value)) {
-            params[key] = value !== 'all' ? value : undefined;
-        }
-
-        const result = await getJson<{ ids: number[]; truncated: boolean }>('/activos/ids-filtrados', params);
-        selected.value = new Set(result.ids);
-    } finally {
-        selectingAllFiltered.value = false;
-    }
+function selectAllFiltered() {
+    selectionMode.value = 'all_filtered';
+    selected.value = new Set();
 }
 
-function submitAssetIdsForm(action: string, extraFields: Record<string, string> = {}) {
+const selectedCount = computed(() => (selectionMode.value === 'all_filtered' ? props.assets.total : selected.value.size));
+
+function submitSelectionForm(action: string, extraFields: Record<string, string> = {}) {
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = action;
@@ -245,7 +273,17 @@ function submitAssetIdsForm(action: string, extraFields: Record<string, string> 
     csrf.value = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
     form.appendChild(csrf);
 
-    for (const [name, value] of Object.entries(extraFields)) {
+    const fields: Record<string, string | undefined> = {
+        ...extraFields,
+        selection_mode: selectionMode.value,
+        ...(selectionMode.value === 'all_filtered' ? currentFilterParams() : {}),
+    };
+
+    for (const [name, value] of Object.entries(fields)) {
+        if (value === undefined) {
+            continue;
+        }
+
         const input = document.createElement('input');
         input.type = 'hidden';
         input.name = name;
@@ -253,13 +291,15 @@ function submitAssetIdsForm(action: string, extraFields: Record<string, string> 
         form.appendChild(input);
     }
 
-    selected.value.forEach((id) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'asset_ids[]';
-        input.value = String(id);
-        form.appendChild(input);
-    });
+    if (selectionMode.value === 'ids') {
+        selected.value.forEach((id) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'asset_ids[]';
+            input.value = String(id);
+            form.appendChild(input);
+        });
+    }
 
     document.body.appendChild(form);
     form.submit();
@@ -268,7 +308,13 @@ function submitAssetIdsForm(action: string, extraFields: Record<string, string> 
 
 const sizeDialogOpen = ref(false);
 
-const firstSelectedAsset = computed(() => props.assets.data.find((asset) => selected.value.has(asset.id)) ?? null);
+const firstSelectedAsset = computed(() => {
+    if (selectionMode.value === 'all_filtered') {
+        return props.assets.data[0] ?? null;
+    }
+
+    return props.assets.data.find((asset) => selected.value.has(asset.id)) ?? null;
+});
 
 const previewAsset = computed(() =>
     firstSelectedAsset.value
@@ -283,7 +329,7 @@ const previewAsset = computed(() =>
 );
 
 function generateLabels(payload: { size: LabelSizeKey; columns: LabelColumns; widthMm: number; heightMm: number }) {
-    submitAssetIdsForm('/etiquetas/pdf', {
+    submitSelectionForm('/etiquetas/pdf', {
         template: payload.columns === 3 ? 'compact' : 'standard',
         size: payload.size,
         width_mm: String(payload.widthMm),
@@ -292,7 +338,7 @@ function generateLabels(payload: { size: LabelSizeKey; columns: LabelColumns; wi
 }
 
 function downloadQrZip() {
-    submitAssetIdsForm('/activos-qr-zip');
+    submitSelectionForm('/activos-qr-zip');
 }
 </script>
 
@@ -354,28 +400,26 @@ function downloadQrZip() {
                     <component :is="allOnPageSelected ? CheckSquare : Square" class="mr-1 size-4" />
                     Seleccionar página
                 </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    :disabled="selectingAllFiltered"
-                    @click="selectAllFiltered"
-                >
+                <Button variant="ghost" size="sm" @click="selectAllFiltered">
                     <CheckSquare class="mr-1 size-4" />
-                    {{ selectingAllFiltered ? 'Buscando...' : `Seleccionar los ${assets.total} resultados` }}
+                    Seleccionar los {{ assets.total }} resultados
                 </Button>
-                <Button variant="ghost" size="sm" :disabled="selected.size === 0" @click="clearSelection">
+                <Button variant="ghost" size="sm" :disabled="selectedCount === 0" @click="clearSelection">
                     Limpiar selección
                 </Button>
-                <span class="text-sm text-muted-foreground">{{ selected.size }} seleccionados</span>
+                <span class="text-sm text-muted-foreground">
+                    {{ selectedCount }} seleccionados
+                    <template v-if="selectionMode === 'all_filtered'">(todos los resultados filtrados)</template>
+                </span>
             </div>
             <div class="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" :disabled="selected.size === 0" @click="downloadQrZip">
+                <Button variant="outline" size="sm" :disabled="selectedCount === 0" @click="downloadQrZip">
                     <FileArchive class="mr-1 size-4" />
                     Descargar QR (.zip)
                 </Button>
-                <Button size="sm" :disabled="selected.size === 0" @click="sizeDialogOpen = true">
+                <Button size="sm" :disabled="selectedCount === 0" @click="sizeDialogOpen = true">
                     <Download class="mr-1 size-4" />
-                    Generar etiquetas ({{ selected.size }})
+                    Generar etiquetas ({{ selectedCount }})
                 </Button>
             </div>
         </div>
@@ -383,7 +427,7 @@ function downloadQrZip() {
         <LabelSizeDialog
             v-model:open="sizeDialogOpen"
             :config="labelSizes"
-            :count="selected.size"
+            :count="selectedCount"
             :preview-asset="previewAsset"
             @confirm="generateLabels"
         />
@@ -490,7 +534,7 @@ function downloadQrZip() {
                     :key="asset.id"
                     :asset="asset"
                     :selectable="qrMode"
-                    :selected="selected.has(asset.id)"
+                    :selected="isSelected(asset.id)"
                     @toggle-select="toggleSelect"
                 />
             </div>
@@ -526,11 +570,11 @@ function downloadQrZip() {
                             v-for="asset in assets.data"
                             :key="asset.id"
                             class="cursor-pointer"
-                            :class="qrMode && selected.has(asset.id) && 'bg-accent/40'"
+                            :class="qrMode && isSelected(asset.id) && 'bg-accent/40'"
                             @click="qrMode ? toggleSelect(asset.id) : router.visit(`/activos/${asset.public_id}`)"
                         >
                             <TableCell v-if="qrMode" @click.stop="toggleSelect(asset.id)">
-                                <Checkbox :model-value="selected.has(asset.id)" />
+                                <Checkbox :model-value="isSelected(asset.id)" />
                             </TableCell>
                             <TableCell class="font-mono text-sm">{{
                                 asset.internal_code

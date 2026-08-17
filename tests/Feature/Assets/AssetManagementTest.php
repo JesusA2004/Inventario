@@ -68,6 +68,104 @@ test('the asset search endpoint still filters by query when one is typed', funct
     expect($codes)->toBe([$asset->internal_code]);
 });
 
+test('the asset search endpoint also matches by serial number, model, brand and current responsible', function () {
+    $user = createAdmin();
+
+    $responsible = ResponsiblePerson::create([
+        'company_id' => $this->company->id,
+        'full_name' => 'Jesús Arizmendi',
+        'active' => true,
+    ]);
+
+    $bySerial = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'serial_number' => 'SN-UNICO-777',
+    ]);
+
+    $byModel = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'model' => 'OptiPlex Ultra Modelo Único',
+    ]);
+
+    $byBrand = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'brand_id' => $this->brand->id,
+    ]);
+
+    $byResponsible = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'current_responsible_id' => $responsible->id,
+    ]);
+
+    Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+    ]);
+
+    $bySerialIds = collect($this->actingAs($user)->get('/activos/buscar?q=SN-UNICO-777')->json())->pluck('id');
+    expect($bySerialIds->all())->toBe([$bySerial->id]);
+
+    $byModelIds = collect($this->actingAs($user)->get('/activos/buscar?q=Modelo Único')->json())->pluck('id');
+    expect($byModelIds->all())->toBe([$byModel->id]);
+
+    $byBrandIds = collect($this->actingAs($user)->get('/activos/buscar?q='.$this->brand->name)->json())->pluck('id');
+    expect($byBrandIds)->toContain($byBrand->id);
+
+    $byResponsibleIds = collect($this->actingAs($user)->get('/activos/buscar?q=Arizmendi')->json())->pluck('id');
+    expect($byResponsibleIds->all())->toBe([$byResponsible->id]);
+});
+
+test('an invalid sort column falls back safely instead of returning a 500', function () {
+    $user = createAdmin();
+
+    Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+    ]);
+
+    $this->actingAs($user)->get('/activos?sort=foo')->assertOk();
+    $this->actingAs($user)->get('/activos?direction=foo')->assertOk();
+    $this->actingAs($user)->get('/activos?sort=1;DROP TABLE assets;--')->assertOk();
+
+    // La whitelist no debe tronar la tabla real.
+    expect(Asset::query()->count())->toBe(1);
+});
+
+test('a whitelisted sort column and direction are honored', function () {
+    $user = createAdmin();
+
+    $older = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'internal_code' => 'CML-LAP-AAA',
+    ]);
+    $newer = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'internal_code' => 'CML-LAP-ZZZ',
+    ]);
+
+    $response = $this->actingAs($user)->get('/activos?sort=internal_code&direction=asc');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('assets.data.0.internal_code', $older->internal_code)
+        ->where('assets.data.1.internal_code', $newer->internal_code)
+    );
+});
+
 test('an asset can be created and gets a permanent public_id', function () {
     $user = createAdmin();
 

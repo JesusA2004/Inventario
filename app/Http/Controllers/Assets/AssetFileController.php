@@ -6,6 +6,7 @@ use App\Enums\AssetFileType;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
 use App\Models\AssetFile;
+use App\Services\AssetFileService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -17,6 +18,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssetFileController extends Controller implements HasMiddleware
 {
+    public function __construct(private readonly AssetFileService $files) {}
+
     public static function middleware(): array
     {
         return [
@@ -39,23 +42,7 @@ class AssetFileController extends Controller implements HasMiddleware
                 : ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]);
 
-        $file = $request->file('file');
-
-        // Las fotos siguen siendo públicas (se usan como miniatura en el
-        // listado); facturas y documentos van al disco privado, solo
-        // accesibles vía el endpoint autenticado download().
-        $disk = $data['type'] === AssetFileType::Foto->value ? 'public' : 'local';
-        $path = $file->store('assets/'.$asset->id.'/'.$data['type'], $disk);
-
-        $asset->files()->create([
-            'type' => $data['type'],
-            'disk' => $disk,
-            'path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime' => $file->getClientMimeType(),
-            'size' => $file->getSize(),
-            'uploaded_by' => $request->user()?->id,
-        ]);
+        $this->files->storeForType($asset, $request->file('file'), AssetFileType::from($data['type']), $request->user()?->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Archivo subido correctamente.']);
 
@@ -66,8 +53,7 @@ class AssetFileController extends Controller implements HasMiddleware
     {
         abort_unless($file->asset_id === $asset->id, 404);
 
-        Storage::disk($file->disk)->delete($file->path);
-        $file->delete();
+        $this->files->delete($file);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Archivo eliminado.']);
 

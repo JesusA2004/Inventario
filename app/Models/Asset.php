@@ -104,6 +104,9 @@ class Asset extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * @return HasMany<AssetFile, $this>
+     */
     public function files(): HasMany
     {
         return $this->hasMany(AssetFile::class);

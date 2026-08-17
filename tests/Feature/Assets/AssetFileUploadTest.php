@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     Storage::fake('public');
+    Storage::fake('local');
 
     $this->seed(RolesAndPermissionsSeeder::class);
 
@@ -77,4 +78,71 @@ test('an uploaded file can be deleted from the ficha', function () {
         ->assertRedirect();
 
     expect($this->asset->files()->count())->toBe(0);
+});
+
+test('an invoice uploaded while creating an asset via AssetController::store is stored privately', function () {
+    $invoice = UploadedFile::fake()->create('factura.pdf', 200, 'application/pdf');
+
+    $this->actingAs($this->user)->post('/activos', [
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'name' => 'Laptop con factura',
+        'internal_code' => 'CML-LAP-777',
+        'status' => 'activo',
+        'acquired_at' => now()->toDateString(),
+        'invoice_file' => $invoice,
+    ])->assertRedirect();
+
+    $asset = Asset::query()->where('internal_code', 'CML-LAP-777')->firstOrFail();
+    $file = $asset->files()->where('type', 'factura')->firstOrFail();
+
+    expect($file->disk)->toBe('local');
+    Storage::disk('local')->assertExists($file->path);
+    Storage::disk('public')->assertMissing($file->path);
+});
+
+test('a photo uploaded while creating an asset via AssetController::store stays public', function () {
+    $photo = UploadedFile::fake()->image('foto.jpg');
+
+    $this->actingAs($this->user)->post('/activos', [
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'name' => 'Laptop con foto',
+        'internal_code' => 'CML-LAP-778',
+        'status' => 'activo',
+        'acquired_at' => now()->toDateString(),
+        'photos' => [$photo],
+    ])->assertRedirect();
+
+    $asset = Asset::query()->where('internal_code', 'CML-LAP-778')->firstOrFail();
+    $file = $asset->files()->where('type', 'foto')->firstOrFail();
+
+    expect($file->disk)->toBe('public');
+    Storage::disk('public')->assertExists($file->path);
+});
+
+test('an invoice attached while editing an asset via AssetController::update is stored privately', function () {
+    $invoice = UploadedFile::fake()->create('factura-edicion.pdf', 200, 'application/pdf');
+
+    $this->actingAs($this->user)->put("/activos/{$this->asset->public_id}", [
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'name' => $this->asset->name,
+        'internal_code' => $this->asset->internal_code,
+        'status' => $this->asset->status->value,
+        'acquired_at' => $this->asset->acquired_at->toDateString(),
+        'invoice_file' => $invoice,
+    ])->assertRedirect();
+
+    $file = $this->asset->files()->where('type', 'factura')->firstOrFail();
+
+    expect($file->disk)->toBe('local');
+    Storage::disk('local')->assertExists($file->path);
+    Storage::disk('public')->assertMissing($file->path);
+
+    // Nunca debe poder descargarse desde la ruta pública de /storage.
+    $this->get(Storage::disk('public')->url($file->path))->assertNotFound();
 });

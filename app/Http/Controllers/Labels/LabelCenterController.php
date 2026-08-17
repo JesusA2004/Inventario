@@ -19,6 +19,13 @@ use Inertia\Response;
 
 class LabelCenterController extends Controller implements HasMiddleware
 {
+    /**
+     * Mismo criterio que AssetController::MAX_BULK_SELECTION: si el filtro
+     * actual (o la selección de IDs) supera esto, se rechaza con un mensaje
+     * explícito en vez de truncar el PDF en silencio.
+     */
+    private const int MAX_BULK_SELECTION = 1000;
+
     public function __construct(
         private readonly AssetLabelPdfService $labelPdfService,
         private readonly LabelSizeResolver $sizeResolver,
@@ -55,6 +62,7 @@ class LabelCenterController extends Controller implements HasMiddleware
     public function pdf(Request $request): \Symfony\Component\HttpFoundation\Response
     {
         $data = $request->validate([
+            'selection_mode' => ['nullable', 'string', 'in:ids,all_filtered'],
             'asset_ids' => ['nullable', 'array'],
             'asset_ids.*' => ['integer'],
             'template' => ['nullable', 'string', 'in:standard,compact'],
@@ -63,13 +71,18 @@ class LabelCenterController extends Controller implements HasMiddleware
             'height_mm' => ['required_if:size,custom', 'nullable', 'numeric', 'min:'.LabelSizeResolver::MIN_HEIGHT_MM, 'max:'.LabelSizeResolver::MAX_HEIGHT_MM],
         ]);
 
-        $query = $request->filled('asset_ids')
+        $mode = $request->string('selection_mode', $request->filled('asset_ids') ? 'ids' : 'all_filtered')->toString();
+
+        $query = $mode === 'ids'
             ? Asset::query()->whereIn('id', $request->array('asset_ids'))
-            : $this->filteredQuery($request)->limit(500);
+            : $this->filteredQuery($request);
+
+        $total = (clone $query)->count();
+
+        abort_if($total === 0, 422, 'Selecciona al menos un activo para generar las etiquetas.');
+        abort_if($total > self::MAX_BULK_SELECTION, 422, "Hay {$total} activos seleccionados; el máximo por operación es ".self::MAX_BULK_SELECTION.'. Ajusta los filtros o selecciona menos activos.');
 
         $assets = $query->with('assetType', 'company')->get();
-
-        abort_if($assets->isEmpty(), 422, 'Selecciona al menos un activo para generar las etiquetas.');
 
         $template = $request->string('template', 'standard')->toString();
         $size = $data['size'] ?? 'medium';
@@ -91,6 +104,9 @@ class LabelCenterController extends Controller implements HasMiddleware
             ->stream('etiquetas-qr-'.now()->format('Y-m-d-His').'.pdf');
     }
 
+    /**
+     * @return Builder<Asset>
+     */
     private function filteredQuery(Request $request): Builder
     {
         return Asset::query()

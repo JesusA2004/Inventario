@@ -41,6 +41,21 @@ test('responsible can be changed via the quick action and creates a movement', f
     expect($this->asset->movements()->where('type', MovementType::CambioResponsable)->exists())->toBeTrue();
 });
 
+test('a responsible from a different company is rejected even via a manipulated POST', function () {
+    $otherCompany = Company::create(['name' => 'MR INSIGHT', 'code' => 'MRI', 'active' => true]);
+    $foreignResponsible = ResponsiblePerson::create(['company_id' => $otherCompany->id, 'full_name' => 'Ajeno', 'active' => true]);
+
+    $response = $this->actingAs($this->user)->post("/activos/{$this->asset->public_id}/cambiar-responsable", [
+        'current_responsible_id' => $foreignResponsible->id,
+    ]);
+
+    $response->assertSessionHasErrors('current_responsible_id');
+    expect(session('errors')->get('current_responsible_id'))->toBe([
+        'El responsable seleccionado no pertenece a la empresa del activo.',
+    ]);
+    expect($this->asset->fresh()->current_responsible_id)->toBeNull();
+});
+
 test('location can be changed via the quick action and creates a movement', function () {
     $this->actingAs($this->user)->post("/activos/{$this->asset->public_id}/cambiar-ubicacion", [
         'branch_id' => $this->branch2->id,
@@ -51,6 +66,40 @@ test('location can be changed via the quick action and creates a movement', func
     expect($this->asset->branch_id)->toBe($this->branch2->id);
     expect($this->asset->department_id)->toBe($this->department->id);
     expect($this->asset->movements()->where('type', MovementType::CambioSucursal)->exists())->toBeTrue();
+});
+
+test('a branch from a different company is rejected even via a manipulated POST', function () {
+    $otherCompany = Company::create(['name' => 'MR INSIGHT', 'code' => 'MRI', 'active' => true]);
+    $foreignBranch = Branch::create(['company_id' => $otherCompany->id, 'name' => 'Ajena', 'code' => 'AJE', 'active' => true]);
+
+    $response = $this->actingAs($this->user)->post("/activos/{$this->asset->public_id}/cambiar-ubicacion", [
+        'branch_id' => $foreignBranch->id,
+    ]);
+
+    $response->assertSessionHasErrors('branch_id');
+    expect($this->asset->fresh()->branch_id)->toBe($this->branch->id);
+});
+
+test('a department tied to a different company is rejected even via a manipulated POST', function () {
+    $otherCompany = Company::create(['name' => 'MR INSIGHT', 'code' => 'MRI', 'active' => true]);
+    $foreignDepartment = Department::create(['company_id' => $otherCompany->id, 'name' => 'Ajena', 'active' => true]);
+
+    $response = $this->actingAs($this->user)->post("/activos/{$this->asset->public_id}/cambiar-ubicacion", [
+        'branch_id' => $this->branch->id,
+        'department_id' => $foreignDepartment->id,
+    ]);
+
+    $response->assertSessionHasErrors('department_id');
+    expect($this->asset->fresh()->department_id)->not->toBe($foreignDepartment->id);
+});
+
+test('a department with no company (global) is accepted for any asset', function () {
+    $this->actingAs($this->user)->post("/activos/{$this->asset->public_id}/cambiar-ubicacion", [
+        'branch_id' => $this->branch->id,
+        'department_id' => $this->department->id,
+    ])->assertRedirect();
+
+    expect($this->asset->fresh()->department_id)->toBe($this->department->id);
 });
 
 test('a review can be registered and updates last_reviewed_at', function () {
@@ -87,4 +136,38 @@ test('an asset can be decommissioned and reactivated without losing history', fu
     expect($this->asset->status)->toBe(AssetStatus::Activo);
     expect($this->asset->movements()->where('type', MovementType::Reactivacion)->exists())->toBeTrue();
     expect($this->asset->movements()->count())->toBeGreaterThanOrEqual(2);
+});
+
+test('a decommission date before the asset acquired_at is rejected', function () {
+    $asset = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'acquired_at' => now()->subDays(10)->toDateString(),
+    ]);
+
+    $response = $this->actingAs($this->user)->post("/activos/{$asset->public_id}/baja", [
+        'date' => now()->subDays(20)->toDateString(),
+        'reason' => 'obsoleto',
+    ]);
+
+    $response->assertSessionHasErrors('date');
+    expect($asset->fresh()->in_inventory)->toBeTrue();
+});
+
+test('a review date before the asset acquired_at is rejected', function () {
+    $asset = Asset::factory()->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+        'acquired_at' => now()->subDays(10)->toDateString(),
+    ]);
+
+    $response = $this->actingAs($this->user)->post("/activos/{$asset->public_id}/revision", [
+        'reviewed_at' => now()->subDays(20)->toDateString(),
+        'physical_status' => 'Bueno',
+    ]);
+
+    $response->assertSessionHasErrors('reviewed_at');
+    expect($asset->fresh()->reviews()->count())->toBe(0);
 });

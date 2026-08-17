@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Assets;
 
-use App\Enums\AssetFileType;
 use App\Enums\AssetStatus;
 use App\Enums\DecommissionReason;
 use App\Enums\MovementType;
@@ -18,10 +17,12 @@ use App\Models\Company;
 use App\Models\Department;
 use App\Models\ResponsiblePerson;
 use App\Services\AssetCodeService;
+use App\Services\AssetFileService;
 use App\Services\AssetMovementService;
 use App\Services\LabelSizeResolver;
 use App\Services\QrCodeService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,9 +39,28 @@ use ZipArchive;
 
 class AssetController extends Controller implements HasMiddleware
 {
+    /**
+     * Whitelist de columnas ordenables desde /activos?sort=. Nunca se debe
+     * pasar $request->sort directo a orderBy(): una columna inexistente
+     * (?sort=foo) tronaría con un 500 de SQL en vez de simplemente
+     * ignorarse.
+     */
+    private const array SORTABLE_COLUMNS = [
+        'created_at', 'internal_code', 'name', 'serial_number', 'acquired_at', 'last_reviewed_at',
+    ];
+
+    /**
+     * Tope de una operación masiva (ZIP de QR, materializar IDs para
+     * "seleccionar todos los filtrados"). Si el filtro actual arroja más
+     * activos que esto, se rechaza con un mensaje claro en vez de
+     * truncar en silencio y generar un resultado incompleto sin avisar.
+     */
+    private const int MAX_BULK_SELECTION = 1000;
+
     public function __construct(
         private readonly AssetMovementService $movements,
         private readonly QrCodeService $qrCodeService,
+        private readonly AssetFileService $files,
     ) {}
 
     public static function middleware(): array
@@ -53,14 +73,11 @@ class AssetController extends Controller implements HasMiddleware
     }
 
     /**
-     * Lightweight asset lookup used by other modules (préstamos, piezas)
-     * to link a record to an existing asset without loading the full list.
-     */
-    /**
      * Buscador rápido de activos (usado por el selector de Préstamos y el
      * "activo relacionado" de Piezas). Sin texto todavía muestra un listado
      * inicial en vez de quedar vacío, para que el usuario pueda elegir
-     * navegando en vez de forzarlo a escribir primero.
+     * navegando en vez de forzarlo a escribir primero. Busca por clave,
+     * nombre, número de serie, modelo, marca y responsable actual.
      */
     public function search(Request $request): JsonResponse
     {
@@ -72,7 +89,11 @@ class AssetController extends Controller implements HasMiddleware
             ->when($search, function ($query, $search) {
                 $query->where(function ($inner) use ($search) {
                     $inner->where('internal_code', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%");
+                        ->orWhere('name', 'like', "%{$search}%")
+                        ->orWhere('serial_number', 'like', "%{$search}%")
+                        ->orWhere('model', 'like', "%{$search}%")
+                        ->orWhereHas('brand', fn ($brand) => $brand->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('currentResponsible', fn ($responsible) => $responsible->where('full_name', 'like', "%{$search}%"));
                 });
             })
             ->orderBy('internal_code')
@@ -93,23 +114,68 @@ class AssetController extends Controller implements HasMiddleware
     }
 
     /**
-     * Devuelve los IDs de TODOS los activos que coinciden con los filtros
-     * actuales de /activos (no solo la página visible), para poder
-     * distinguir "seleccionar esta página" de "seleccionar los N
-     * resultados filtrados" antes de generar etiquetas o el ZIP de QR.
+     * Devuelve los IDs de los activos que coinciden con los filtros actuales
+     * de /activos. Se usa cuando el usuario, estando en modo "todos los N
+     * resultados filtrados", deselecciona un activo puntual: ahí hay que
+     * materializar la selección abstracta en IDs concretos para poder
+     * quitar uno. Si hay más de los que se pueden manejar de forma
+     * explícita, se rechaza con un mensaje claro en vez de devolver una
+     * lista truncada silenciosamente (como pasaba antes con el límite fijo
+     * de 1000 + una bandera "truncated" que el frontend nunca leía).
      */
     public function filteredIds(Request $request): JsonResponse
     {
-        $ids = $this->filteredQuery($request)->limit(1000)->pluck('id');
+        $query = $this->filteredQuery($request);
+        $total = (clone $query)->count();
 
-        return response()->json(['ids' => $ids, 'truncated' => $ids->count() >= 1000]);
+        abort_if($total > self::MAX_BULK_SELECTION, 422, "Hay {$total} activos que coinciden con estos filtros; el máximo para seleccionar de forma individual es ".self::MAX_BULK_SELECTION.'. Ajusta los filtros para reducir el resultado.');
+
+        return response()->json(['ids' => $query->pluck('id'), 'total' => $total]);
+    }
+
+    /**
+     * Resuelve la colección de activos sobre la que operará una acción
+     * masiva (ZIP de QR, PDF de etiquetas): selección explícita por IDs
+     * (checkboxes marcados) o "todos los resultados filtrados" (vuelve a
+     * correr filteredQuery() con los filtros actuales en vez de depender de
+     * una lista de IDs enviada por el navegador). En ambos casos se valida
+     * el total ANTES de traer los registros, para nunca truncar en
+     * silencio: si hay demasiados, se rechaza con un mensaje explícito.
+     *
+     * @return Collection<int, Asset>
+     */
+    private function resolveBulkSelection(Request $request): Collection
+    {
+        $request->validate([
+            'selection_mode' => ['nullable', 'string', 'in:ids,all_filtered'],
+            'asset_ids' => ['nullable', 'array'],
+            'asset_ids.*' => ['integer'],
+        ]);
+
+        $mode = $request->string('selection_mode', $request->filled('asset_ids') ? 'ids' : 'all_filtered')->toString();
+
+        $query = $mode === 'ids'
+            ? Asset::query()->whereIn('id', $request->array('asset_ids'))
+            : $this->filteredQuery($request);
+
+        $total = (clone $query)->count();
+
+        abort_if($total === 0, 422, 'No hay activos para esta operación.');
+        abort_if($total > self::MAX_BULK_SELECTION, 422, "Hay {$total} activos seleccionados; el máximo por operación es ".self::MAX_BULK_SELECTION.'. Ajusta los filtros o selecciona menos activos.');
+
+        return $query->get();
     }
 
     public function index(Request $request): Response
     {
+        $sort = $request->string('sort', 'created_at')->toString();
+        $sort = in_array($sort, self::SORTABLE_COLUMNS, true) ? $sort : 'created_at';
+
+        $direction = $request->string('direction', 'desc')->toString() === 'asc' ? 'asc' : 'desc';
+
         $assets = $this->filteredQuery($request)
             ->with(['company:id,name,code', 'branch:id,name', 'department:id,name', 'brand:id,name', 'assetType:id,name', 'currentResponsible:id,full_name', 'latestPhoto'])
-            ->orderBy($request->string('sort', 'created_at')->toString(), $request->string('direction', 'desc')->toString())
+            ->orderBy($sort, $direction)
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Asset $asset) => (new AssetResource($asset))->resolve());
@@ -146,16 +212,7 @@ class AssetController extends Controller implements HasMiddleware
      */
     public function qrZip(Request $request): BinaryFileResponse
     {
-        $request->validate([
-            'asset_ids' => ['nullable', 'array'],
-            'asset_ids.*' => ['integer'],
-        ]);
-
-        $assets = $request->filled('asset_ids')
-            ? Asset::query()->whereIn('id', $request->array('asset_ids'))->get()
-            : $this->filteredQuery($request)->limit(500)->get();
-
-        abort_if($assets->isEmpty(), 422, 'No hay activos para generar el ZIP de códigos QR.');
+        $assets = $this->resolveBulkSelection($request);
 
         set_time_limit(120);
 
@@ -338,30 +395,11 @@ class AssetController extends Controller implements HasMiddleware
     private function storeFiles(Asset $asset, Request $request): void
     {
         if ($request->hasFile('invoice_file')) {
-            $file = $request->file('invoice_file');
-            $path = $file->store('assets/'.$asset->id.'/facturas', 'public');
-
-            $asset->files()->create([
-                'type' => AssetFileType::Factura,
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-                'mime' => $file->getClientMimeType(),
-                'size' => $file->getSize(),
-                'uploaded_by' => $request->user()?->id,
-            ]);
+            $this->files->storeInvoice($asset, $request->file('invoice_file'), $request->user()?->id);
         }
 
         foreach ($request->file('photos', []) as $photo) {
-            $path = $photo->store('assets/'.$asset->id.'/fotos', 'public');
-
-            $asset->files()->create([
-                'type' => AssetFileType::Foto,
-                'path' => $path,
-                'original_name' => $photo->getClientOriginalName(),
-                'mime' => $photo->getClientMimeType(),
-                'size' => $photo->getSize(),
-                'uploaded_by' => $request->user()?->id,
-            ]);
+            $this->files->storePhoto($asset, $photo, $request->user()?->id);
         }
     }
 

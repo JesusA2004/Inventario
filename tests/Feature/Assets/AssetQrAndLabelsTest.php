@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\User;
 use App\Services\AssetLabelPdfService;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -149,6 +150,91 @@ test('the single label print accepts a size and reaches the pdf', function () {
     $this->actingAs($user)->get("/activos/{$this->asset->public_id}/etiqueta?size=custom&width_mm=60&height_mm=45")->assertOk();
 });
 
+test('the label pdf can be generated for all filtered results without sending explicit ids', function () {
+    $user = User::factory()->create();
+    $user->assignRole('superadministrador');
+
+    Asset::factory()->count(2)->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+    ]);
+
+    $this->actingAs($user)->post('/etiquetas/pdf', [
+        'selection_mode' => 'all_filtered',
+        'company_id' => $this->company->id,
+    ])->assertOk();
+});
+
+test('the qr zip can be generated for all filtered results without sending explicit ids', function () {
+    $user = User::factory()->create();
+    $user->assignRole('superadministrador');
+
+    Asset::factory()->count(2)->create([
+        'company_id' => $this->company->id,
+        'branch_id' => $this->branch->id,
+        'asset_type_id' => $this->assetType->id,
+    ]);
+
+    $response = $this->actingAs($user)->post('/activos-qr-zip', [
+        'selection_mode' => 'all_filtered',
+        'company_id' => $this->company->id,
+    ]);
+
+    $response->assertOk();
+    expect($response->headers->get('content-type'))->toBe('application/zip');
+});
+
+test('an empty filtered selection for the qr zip returns a clear error instead of an empty file', function () {
+    $user = User::factory()->create();
+    $user->assignRole('superadministrador');
+
+    $response = $this->actingAs($user)->post('/activos-qr-zip', [
+        'selection_mode' => 'all_filtered',
+        'q' => 'no-existe-ningun-activo-con-esta-clave',
+    ]);
+
+    $response->assertStatus(422);
+});
+
+test('a bulk selection over the safe cap is rejected with an honest count, not silently truncated', function () {
+    $user = User::factory()->create();
+    $user->assignRole('superadministrador');
+
+    // Inserción masiva sin pasar por eventos de modelo, para que la prueba
+    // sea rápida: solo interesa que el conteo pase de 1000, no el contenido.
+    $now = now();
+    $rows = [];
+
+    for ($i = 0; $i < 1001; $i++) {
+        $rows[] = [
+            'public_id' => (string) Str::ulid(),
+            'company_id' => $this->company->id,
+            'branch_id' => $this->branch->id,
+            'asset_type_id' => $this->assetType->id,
+            'internal_code' => 'BULK-'.$i,
+            'name' => 'Bulk Asset',
+            'status' => 'activo',
+            'in_inventory' => true,
+            'acquired_at' => $now->toDateString(),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+    }
+
+    foreach (array_chunk($rows, 200) as $chunk) {
+        Asset::query()->insert($chunk);
+    }
+
+    $response = $this->actingAs($user)->post('/activos-qr-zip', [
+        'selection_mode' => 'all_filtered',
+        'company_id' => $this->company->id,
+    ]);
+
+    $response->assertStatus(422);
+    expect($response->getContent())->toContain('1001');
+});
+
 test('the filtered ids endpoint returns every asset matching the current filters, not just one page', function () {
     $user = User::factory()->create();
     $user->assignRole('superadministrador');
@@ -163,4 +249,5 @@ test('the filtered ids endpoint returns every asset matching the current filters
 
     $response->assertOk();
     expect($response->json('ids'))->toHaveCount(4);
+    expect($response->json('total'))->toBe(4);
 });
