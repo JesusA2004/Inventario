@@ -5,6 +5,29 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
+        {{-- SEO / metadata --}}
+        <meta name="description" content="{{ config('app.name') }} · Sistema de inventario de activos de TI: equipos, sucursales, préstamos, auditorías y códigos QR en un solo lugar.">
+        <meta name="robots" content="noindex, nofollow">
+        <meta name="theme-color" content="#132a45" media="(prefers-color-scheme: light)">
+        <meta name="theme-color" content="#0b1a2c" media="(prefers-color-scheme: dark)">
+        <meta name="color-scheme" content="light dark">
+        <meta name="application-name" content="{{ config('app.name') }}">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-title" content="{{ config('app.name') }}">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+        {{-- Open Graph / enlaces compartidos internamente --}}
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="{{ config('app.name') }}">
+        <meta property="og:title" content="{{ config('app.name') }}">
+        <meta property="og:description" content="Sistema de inventario de activos de TI: equipos, sucursales, préstamos, auditorías y códigos QR en un solo lugar.">
+        <meta property="og:image" content="{{ asset('apple-touch-icon.png') }}">
+        <meta name="twitter:card" content="summary">
+        <meta name="twitter:title" content="{{ config('app.name') }}">
+        <meta name="twitter:description" content="Sistema de inventario de activos de TI.">
+        <meta name="twitter:image" content="{{ asset('apple-touch-icon.png') }}">
+
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
             (function() {

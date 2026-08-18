@@ -30,6 +30,12 @@ const highlights = [
             class="relative hidden h-full flex-col justify-between overflow-hidden bg-sidebar p-10 text-sidebar-foreground lg:flex"
         >
             <div
+                class="pointer-events-none absolute -top-32 -left-24 h-96 w-96 rounded-full bg-sidebar-primary/30 blur-[120px]"
+            />
+            <div
+                class="pointer-events-none absolute -right-24 -bottom-32 h-96 w-96 rounded-full bg-sidebar-primary/20 blur-[120px]"
+            />
+            <div
                 class="pointer-events-none absolute inset-0 opacity-[0.07]"
                 style="
                     background-image: radial-gradient(
@@ -46,7 +52,7 @@ const highlights = [
                 class="relative z-20 flex items-center gap-3 text-lg font-semibold text-white"
             >
                 <span
-                    class="flex size-9 items-center justify-center rounded-lg bg-sidebar-primary"
+                    class="flex size-9 items-center justify-center rounded-lg bg-sidebar-primary shadow-lg shadow-sidebar-primary/30 ring-1 ring-white/10"
                 >
                     <AppLogoIcon
                         class="size-5 fill-current text-sidebar-primary-foreground"
@@ -76,7 +82,7 @@ const highlights = [
                         class="flex items-center gap-3 text-sm text-sidebar-foreground/90"
                     >
                         <span
-                            class="flex size-8 shrink-0 items-center justify-center rounded-md bg-white/10"
+                            class="flex size-8 shrink-0 items-center justify-center rounded-md bg-white/10 ring-1 ring-white/10"
                         >
                             <component :is="item.icon" class="size-4" />
                         </span>
@@ -91,13 +97,16 @@ const highlights = [
             </p>
         </div>
 
-        <div class="lg:p-8">
+        <div class="relative lg:p-8">
             <div
-                class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[360px]"
+                class="pointer-events-none absolute inset-0 hidden bg-[radial-gradient(ellipse_at_top,rgba(27,71,141,0.06),transparent_60%)] lg:block dark:bg-[radial-gradient(ellipse_at_top,rgba(126,195,240,0.05),transparent_60%)]"
+            />
+            <div
+                class="relative mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[360px]"
             >
                 <div class="flex flex-col items-center gap-2 lg:hidden">
                     <span
-                        class="flex size-10 items-center justify-center rounded-lg bg-primary"
+                        class="flex size-10 items-center justify-center rounded-lg bg-primary shadow-lg shadow-primary/30"
                     >
                         <AppLogoIcon
                             class="size-5 fill-current text-primary-foreground"
