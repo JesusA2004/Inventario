@@ -136,6 +136,7 @@ const labelSizeDialogOpen = ref(false);
 
 const labelPreviewAsset = computed(() => ({
     type_name: (props.asset.assetType?.name ?? '').toUpperCase(),
+    name: props.asset.name,
     internal_code: props.asset.internal_code,
     serial_number: props.asset.serial_number,
     company_name: props.asset.company?.name ?? '',

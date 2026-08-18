@@ -16,6 +16,7 @@ import type { LabelColumns, LabelSizeKey, LabelSizesConfig } from '@/lib/labelSi
 
 type PreviewAsset = {
     type_name: string;
+    name: string;
     internal_code: string;
     serial_number: string | null;
     company_name: string;
@@ -70,12 +71,37 @@ function isCompatible(candidate: LabelSizeKey, cols: LabelColumns): boolean {
 const columnOptions: { value: LabelColumns; label: string }[] = [
     { value: 2, label: '2 columnas' },
     { value: 3, label: '3 columnas' },
+    { value: 4, label: '4 columnas' },
+    { value: 5, label: '5 columnas' },
 ];
 
-// Si el usuario elige una combinación que ya no cabe (p. ej. Grande + 3
-// columnas), se cambia automáticamente a la opción compatible más cercana en
-// vez de dejar que genere una etiqueta cortada.
-watch([size, columns, customWidth], () => {
+// Al elegir un tamaño, se sugieren automáticamente las columnas que mejor
+// aprovechan la hoja para ese tamaño (una etiqueta pequeña no debería quedar
+// forzada a solo 2 por fila). El usuario puede cambiarlo después a mano.
+const recommendedColumns: Record<Exclude<LabelSizeKey, 'custom'>, LabelColumns> = {
+    small: 5,
+    medium: 3,
+    large: 2,
+};
+
+function bestFitColumns(width: number): LabelColumns {
+    if (!props.showColumns) {
+        return 2;
+    }
+
+    const candidate = [...columnOptions].reverse().find((option) => fitsColumns(props.config, width, option.value));
+
+    return candidate?.value ?? 2;
+}
+
+watch(size, (newSize) => {
+    columns.value = newSize === 'custom' ? bestFitColumns(customWidth.value) : recommendedColumns[newSize];
+});
+
+// Si el usuario elige (o el ancho personalizado termina en) una combinación
+// que ya no cabe, se cambia automáticamente a la opción compatible más
+// cercana en vez de dejar que genere una etiqueta cortada.
+watch([columns, customWidth], () => {
     if (!isCompatible(size.value, columns.value)) {
         const fallback = columnOptions.find((option) => isCompatible(size.value, option.value));
 
@@ -179,7 +205,7 @@ function confirm() {
 
                     <div v-if="showColumns" class="grid gap-2">
                         <Label>Columnas por hoja</Label>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-4 gap-2">
                             <button
                                 v-for="option in columnOptions"
                                 :key="option.value"
@@ -218,6 +244,12 @@ function confirm() {
                             :style="{ fontSize: `${Math.max(7, dimensions.width * 0.19 * previewScale * 0.6)}px` }"
                         >
                             {{ previewAsset?.type_name ?? 'TIPO DE EQUIPO' }}
+                        </span>
+                        <span
+                            class="font-semibold text-foreground"
+                            :style="{ fontSize: `${Math.max(8, dimensions.width * 0.22 * previewScale * 0.6)}px` }"
+                        >
+                            {{ previewAsset?.name ?? 'Nombre del activo' }}
                         </span>
                         <span
                             class="font-bold text-foreground"

@@ -107,6 +107,7 @@ const previewAsset = computed(() =>
     firstSelectedAsset.value
         ? {
               type_name: (firstSelectedAsset.value.assetType?.name ?? '').toUpperCase(),
+              name: firstSelectedAsset.value.name,
               internal_code: firstSelectedAsset.value.internal_code,
               serial_number: firstSelectedAsset.value.serial_number,
               company_name: firstSelectedAsset.value.company?.name ?? '',
@@ -128,7 +129,7 @@ function printSelected(payload: { size: LabelSizeKey; columns: LabelColumns; wid
     form.appendChild(csrf);
 
     const fields: Record<string, string> = {
-        template: payload.columns === 3 ? 'compact' : 'standard',
+        columns: String(payload.columns),
         size: payload.size,
         width_mm: String(payload.widthMm),
         height_mm: String(payload.heightMm),

@@ -12,26 +12,26 @@ namespace App\Services;
 class LabelSizeResolver
 {
     /**
-     * @var array<string, array{label: string, hint: string, width: float, height: float, qr: float, font_type: float, font_code: float, font_small: float}>
+     * @var array<string, array{label: string, hint: string, width: float, height: float, qr: float, font_type: float, font_name: float, font_code: float, font_small: float}>
      */
     public const array PRESETS = [
         'small' => [
             'label' => 'Pequeño',
             'hint' => 'Mouse, cargador, accesorios',
-            'width' => 32.0, 'height' => 26.0, 'qr' => 16.0,
-            'font_type' => 6.0, 'font_code' => 8.5, 'font_small' => 5.5,
+            'width' => 32.0, 'height' => 34.0, 'qr' => 16.0,
+            'font_type' => 6.0, 'font_name' => 7.0, 'font_code' => 8.5, 'font_small' => 5.5,
         ],
         'medium' => [
             'label' => 'Mediano',
             'hint' => 'Teclado, impresora, equipo mediano',
-            'width' => 48.0, 'height' => 38.0, 'qr' => 23.0,
-            'font_type' => 7.5, 'font_code' => 11.0, 'font_small' => 6.5,
+            'width' => 48.0, 'height' => 46.0, 'qr' => 23.0,
+            'font_type' => 7.5, 'font_name' => 9.0, 'font_code' => 11.0, 'font_small' => 6.5,
         ],
         'large' => [
             'label' => 'Grande',
             'hint' => 'Laptop, monitor, CPU, equipo grande',
-            'width' => 80.0, 'height' => 60.0, 'qr' => 38.0,
-            'font_type' => 9.5, 'font_code' => 15.0, 'font_small' => 8.0,
+            'width' => 80.0, 'height' => 68.0, 'qr' => 38.0,
+            'font_type' => 9.5, 'font_name' => 12.0, 'font_code' => 15.0, 'font_small' => 8.0,
         ],
     ];
 
@@ -44,17 +44,20 @@ class LabelSizeResolver
     public const float MAX_HEIGHT_MM = 70.0;
 
     /**
-     * Usable width per column on a US-letter sheet (12mm/8mm page margins,
-     * 3mm cell padding on each side and 3mm label padding on each side),
+     * Usable width per column on a US-letter sheet (10mm/6mm page margins,
+     * 1mm cell padding on each side and 1mm label padding on each side),
      * rounded down for a small safety margin. Anything wider than this for
      * a given column count would get clipped or crowd the QR into
-     * unreadable territory.
+     * unreadable territory. Small labels have little content, so they can
+     * go up to 5 per row instead of wasting the rest of the sheet.
      *
      * @var array<int, float>
      */
     public const array MAX_WIDTH_BY_COLUMNS = [
-        2 => 85.0,
-        3 => 55.0,
+        2 => 92.0,
+        3 => 60.0,
+        4 => 45.0,
+        5 => 34.0,
     ];
 
     /**
@@ -77,6 +80,7 @@ class LabelSizeResolver
                 'height' => $height,
                 'qr' => $qr,
                 'font_type' => $this->scaledFont($minSide, 0.19, 6.0, 11.0),
+                'font_name' => $this->scaledFont($minSide, 0.22, 6.5, 13.0),
                 'font_code' => $this->scaledFont($minSide, 0.27, 8.0, 16.0),
                 'font_small' => $this->scaledFont($minSide, 0.15, 5.5, 9.0),
             ];
@@ -87,6 +91,7 @@ class LabelSizeResolver
                 'height' => $preset['height'],
                 'qr' => $preset['qr'],
                 'font_type' => $preset['font_type'],
+                'font_name' => $preset['font_name'],
                 'font_code' => $preset['font_code'],
                 'font_small' => $preset['font_small'],
             ];

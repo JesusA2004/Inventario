@@ -7,6 +7,7 @@ export type LabelSizePreset = {
     height: number;
     qr: number;
     font_type: number;
+    font_name: number;
     font_code: number;
     font_small: number;
 };
@@ -17,7 +18,7 @@ export type LabelSizesConfig = {
     maxWidthByColumns: Record<string, number>;
 };
 
-export type LabelColumns = 2 | 3;
+export type LabelColumns = 2 | 3 | 4 | 5;
 
 /** Ancho/alto/QR efectivos (mm) para la combinación tamaño+columnas elegida. */
 export function resolveDimensions(

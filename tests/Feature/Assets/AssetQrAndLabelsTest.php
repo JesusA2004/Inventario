@@ -86,13 +86,13 @@ test('the selected label size and custom dimensions are accepted and reach the p
 
     $this->actingAs($user)->post('/etiquetas/pdf', [
         'asset_ids' => [$this->asset->id],
-        'template' => 'standard',
+        'columns' => 2,
         'size' => 'large',
     ])->assertOk();
 
     $this->actingAs($user)->post('/etiquetas/pdf', [
         'asset_ids' => [$this->asset->id],
-        'template' => 'compact',
+        'columns' => 3,
         'size' => 'custom',
         'width_mm' => 45,
         'height_mm' => 35,
@@ -105,13 +105,13 @@ test('a label size that would not fit the chosen number of columns is rejected',
 
     $this->actingAs($user)->post('/etiquetas/pdf', [
         'asset_ids' => [$this->asset->id],
-        'template' => 'compact',
+        'columns' => 3,
         'size' => 'large',
     ])->assertStatus(422);
 
     $this->actingAs($user)->post('/etiquetas/pdf', [
         'asset_ids' => [$this->asset->id],
-        'template' => 'compact',
+        'columns' => 3,
         'size' => 'custom',
         'width_mm' => 80,
         'height_mm' => 60,

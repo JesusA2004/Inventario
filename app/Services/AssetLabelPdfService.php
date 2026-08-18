@@ -20,12 +20,11 @@ class AssetLabelPdfService
      */
     public function build(
         Collection $assets,
-        string $template = 'standard',
+        int $columns = 2,
         string $size = 'medium',
         ?float $customWidth = null,
         ?float $customHeight = null,
     ): \Barryvdh\DomPDF\PDF {
-        $columns = $template === 'compact' ? 3 : 2;
         $dimensions = $this->sizeResolver->resolve($size, $columns, $customWidth, $customHeight);
 
         // El QR se renderiza a una resolución fija generosa (px) independiente
@@ -33,6 +32,7 @@ class AssetLabelPdfService
         // tanto en la etiqueta pequeña como en la grande.
         $labels = $assets->map(fn (Asset $asset) => [
             'type_name' => mb_strtoupper($asset->assetType->name),
+            'name' => $asset->name,
             'internal_code' => $asset->internal_code,
             'serial_number' => $asset->serial_number,
             'company_name' => $asset->company->name,
@@ -71,6 +71,7 @@ class AssetLabelPdfService
         return Pdf::loadView('pdf.label-single', [
             'label' => [
                 'type_name' => mb_strtoupper($asset->assetType->name),
+                'name' => $asset->name,
                 'internal_code' => $asset->internal_code,
                 'serial_number' => $asset->serial_number,
                 'company_name' => $asset->company->name,

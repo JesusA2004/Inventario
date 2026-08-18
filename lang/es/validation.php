@@ -248,7 +248,7 @@ return [
         'full_name' => 'nombre completo',
 
         // Etiquetas QR
-        'template' => 'plantilla',
+        'columns' => 'columnas',
         'size' => 'tamaño',
         'width_mm' => 'ancho',
         'height_mm' => 'alto',

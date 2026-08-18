@@ -65,7 +65,7 @@ class LabelCenterController extends Controller implements HasMiddleware
             'selection_mode' => ['nullable', 'string', 'in:ids,all_filtered'],
             'asset_ids' => ['nullable', 'array'],
             'asset_ids.*' => ['integer'],
-            'template' => ['nullable', 'string', 'in:standard,compact'],
+            'columns' => ['nullable', 'integer', 'in:2,3,4,5'],
             'size' => ['nullable', 'string', 'in:small,medium,large,custom'],
             'width_mm' => ['required_if:size,custom', 'nullable', 'numeric', 'min:'.LabelSizeResolver::MIN_WIDTH_MM, 'max:'.LabelSizeResolver::MAX_WIDTH_MM],
             'height_mm' => ['required_if:size,custom', 'nullable', 'numeric', 'min:'.LabelSizeResolver::MIN_HEIGHT_MM, 'max:'.LabelSizeResolver::MAX_HEIGHT_MM],
@@ -84,9 +84,8 @@ class LabelCenterController extends Controller implements HasMiddleware
 
         $assets = $query->with('assetType', 'company')->get();
 
-        $template = $request->string('template', 'standard')->toString();
+        $columns = (int) ($data['columns'] ?? 2);
         $size = $data['size'] ?? 'medium';
-        $columns = $template === 'compact' ? 3 : 2;
 
         // Defensa en el servidor: aunque el diálogo ya evita elegir
         // combinaciones incompatibles, se vuelve a validar aquí para que un
@@ -100,7 +99,7 @@ class LabelCenterController extends Controller implements HasMiddleware
         );
 
         return $this->labelPdfService
-            ->build($assets, $template, $size, isset($data['width_mm']) ? (float) $data['width_mm'] : null, isset($data['height_mm']) ? (float) $data['height_mm'] : null)
+            ->build($assets, $columns, $size, isset($data['width_mm']) ? (float) $data['width_mm'] : null, isset($data['height_mm']) ? (float) $data['height_mm'] : null)
             ->stream('etiquetas-qr-'.now()->format('Y-m-d-His').'.pdf');
     }
 
