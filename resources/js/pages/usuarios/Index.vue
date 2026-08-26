@@ -66,7 +66,11 @@ const search = ref(props.filters.q ?? '');
 
 function applySearch(value: string) {
     search.value = value;
-    router.get('/usuarios', { q: value || undefined }, { preserveState: true, replace: true });
+    router.get(
+        '/usuarios',
+        { q: value || undefined },
+        { preserveState: true, replace: true },
+    );
 }
 
 const roleLabels: Record<string, string> = {
@@ -97,7 +101,10 @@ function openEdit(user: UserRow) {
 }
 
 function submit() {
-    const options = { preserveScroll: true, onSuccess: () => (dialogOpen.value = false) };
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => (dialogOpen.value = false),
+    };
 
     if (editing.value) {
         form.put(`/usuarios/${editing.value.id}`, options);
@@ -111,7 +118,11 @@ function toggleActive(user: UserRow) {
 }
 
 function resetPassword(user: UserRow) {
-    router.post(`/usuarios/${user.id}/restablecer-contrasena`, {}, { preserveScroll: true });
+    router.post(
+        `/usuarios/${user.id}/restablecer-contrasena`,
+        {},
+        { preserveScroll: true },
+    );
 }
 </script>
 
@@ -119,7 +130,10 @@ function resetPassword(user: UserRow) {
     <Head title="Usuarios" />
 
     <div class="flex flex-col gap-6">
-        <PageHeader title="Usuarios" description="Cuentas con acceso al sistema">
+        <PageHeader
+            title="Usuarios"
+            description="Cuentas con acceso al sistema"
+        >
             <template #actions>
                 <Button @click="openCreate">
                     <Plus class="mr-1 size-4" />
@@ -128,7 +142,11 @@ function resetPassword(user: UserRow) {
             </template>
         </PageHeader>
 
-        <FilterBar :search="search" search-placeholder="Buscar por nombre o correo..." @update:search="applySearch" />
+        <FilterBar
+            :search="search"
+            search-placeholder="Buscar por nombre o correo..."
+            @update:search="applySearch"
+        />
 
         <EmptyState
             v-if="users.data.length === 0"
@@ -145,7 +163,9 @@ function resetPassword(user: UserRow) {
         </EmptyState>
 
         <template v-else>
-            <div class="overflow-x-auto rounded-xl border border-border bg-card">
+            <div
+                class="overflow-x-auto rounded-xl border border-border bg-card"
+            >
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -158,27 +178,57 @@ function resetPassword(user: UserRow) {
                     <TableBody>
                         <TableRow v-for="user in users.data" :key="user.id">
                             <TableCell>
-                                <p class="font-medium text-foreground">{{ user.name }}</p>
-                                <p class="text-sm text-muted-foreground">{{ user.email }}</p>
+                                <p class="font-medium text-foreground">
+                                    {{ user.name }}
+                                </p>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ user.email }}
+                                </p>
                             </TableCell>
                             <TableCell>
-                                <Badge variant="outline">{{ roleLabels[user.roles[0]] ?? user.roles[0] ?? 'Sin rol' }}</Badge>
+                                <Badge variant="outline">{{
+                                    roleLabels[user.roles[0]] ??
+                                    user.roles[0] ??
+                                    'Sin rol'
+                                }}</Badge>
                             </TableCell>
                             <TableCell>
-                                <Badge :variant="user.is_active ? 'default' : 'secondary'">
+                                <Badge
+                                    :variant="
+                                        user.is_active ? 'default' : 'secondary'
+                                    "
+                                >
                                     {{ user.is_active ? 'Activo' : 'Inactivo' }}
                                 </Badge>
                             </TableCell>
                             <TableCell>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger as-child>
-                                        <Button variant="ghost" size="icon" class="size-8"><MoreHorizontal class="size-4" /></Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="size-8"
+                                            ><MoreHorizontal class="size-4"
+                                        /></Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem @click="openEdit(user)">Editar</DropdownMenuItem>
-                                        <DropdownMenuItem @click="resetPassword(user)">Restablecer contraseña</DropdownMenuItem>
-                                        <DropdownMenuItem @click="toggleActive(user)">
-                                            {{ user.is_active ? 'Desactivar' : 'Activar' }}
+                                        <DropdownMenuItem
+                                            @click="openEdit(user)"
+                                            >Editar</DropdownMenuItem
+                                        >
+                                        <DropdownMenuItem
+                                            @click="resetPassword(user)"
+                                            >Restablecer
+                                            contraseña</DropdownMenuItem
+                                        >
+                                        <DropdownMenuItem
+                                            @click="toggleActive(user)"
+                                        >
+                                            {{
+                                                user.is_active
+                                                    ? 'Desactivar'
+                                                    : 'Activar'
+                                            }}
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -194,8 +244,13 @@ function resetPassword(user: UserRow) {
     <Dialog v-model:open="dialogOpen">
         <DialogContent class="sm:max-w-sm">
             <DialogHeader>
-                <DialogTitle>{{ editing ? 'Editar usuario' : 'Nuevo usuario' }}</DialogTitle>
-                <DialogDescription v-if="!editing">Se generará una contraseña temporal que se mostrará una sola vez.</DialogDescription>
+                <DialogTitle>{{
+                    editing ? 'Editar usuario' : 'Nuevo usuario'
+                }}</DialogTitle>
+                <DialogDescription v-if="!editing"
+                    >Se generará una contraseña temporal que se mostrará una
+                    sola vez.</DialogDescription
+                >
             </DialogHeader>
             <form class="space-y-4" @submit.prevent="submit">
                 <div class="grid gap-2">
@@ -211,9 +266,16 @@ function resetPassword(user: UserRow) {
                 <div class="grid gap-2">
                     <Label>Rol</Label>
                     <Select v-model="form.role">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger class="w-full"
+                            ><SelectValue
+                        /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem v-for="role in roles" :key="role" :value="role">{{ roleLabels[role] ?? role }}</SelectItem>
+                            <SelectItem
+                                v-for="role in roles"
+                                :key="role"
+                                :value="role"
+                                >{{ roleLabels[role] ?? role }}</SelectItem
+                            >
                         </SelectContent>
                     </Select>
                     <InputError :message="form.errors.role" />

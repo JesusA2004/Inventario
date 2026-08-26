@@ -2,14 +2,19 @@
 
 namespace App\Http\Requests\Catalogs;
 
+use App\Models\Company;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class CompanyRequest extends FormRequest
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
-        $companyId = $this->route('company')?->id;
+        $routeCompany = $this->route('company');
+        $companyId = $routeCompany instanceof Company ? $routeCompany->id : null;
 
         return [
             'name' => ['required', 'string', 'max:255'],

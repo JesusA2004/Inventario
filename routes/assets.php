@@ -5,6 +5,7 @@ use App\Http\Controllers\Assets\AssetController;
 use App\Http\Controllers\Assets\AssetFileController;
 use App\Http\Controllers\Assets\AssetLabelController;
 use App\Http\Controllers\Assets\AssetQrController;
+use App\Http\Controllers\Responsibilities\AssetResponsibilityController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'active'])->group(function () {
@@ -29,6 +30,7 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
     Route::get('activos/{asset}/etiqueta', [AssetLabelController::class, 'show'])->name('assets.label');
 
     Route::post('activos/{asset}/cambiar-responsable', [AssetActionController::class, 'changeResponsible'])->name('assets.change-responsible');
+    Route::post('activos/{asset}/responsivas', [AssetResponsibilityController::class, 'generateForAsset'])->name('assets.responsibilities.generate');
     Route::post('activos/{asset}/cambiar-ubicacion', [AssetActionController::class, 'changeLocation'])->name('assets.change-location');
     Route::post('activos/{asset}/revision', [AssetActionController::class, 'review'])->name('assets.review');
     Route::post('activos/{asset}/baja', [AssetActionController::class, 'decommission'])->name('assets.decommission');

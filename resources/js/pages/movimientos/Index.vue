@@ -64,12 +64,17 @@ const to = ref<string | null>(props.filters.to ?? null);
 const branchOptions = computed(() =>
     companyFilter.value === 'all'
         ? props.filterOptions.branches
-        : props.filterOptions.branches.filter((b) => String(b.company_id) === companyFilter.value),
+        : props.filterOptions.branches.filter(
+              (b) => String(b.company_id) === companyFilter.value,
+          ),
 );
 
 const companyComboOptions = computed(() => [
     { value: 'all', label: 'Todas las empresas' },
-    ...props.filterOptions.companies.map((c) => ({ value: String(c.id), label: c.name })),
+    ...props.filterOptions.companies.map((c) => ({
+        value: String(c.id),
+        label: c.name,
+    })),
 ]);
 const branchComboOptions = computed(() => [
     { value: 'all', label: 'Todas las sucursales' },
@@ -77,11 +82,17 @@ const branchComboOptions = computed(() => [
 ]);
 const userComboOptions = computed(() => [
     { value: 'all', label: 'Todos los usuarios' },
-    ...props.filterOptions.users.map((u) => ({ value: String(u.id), label: u.name })),
+    ...props.filterOptions.users.map((u) => ({
+        value: String(u.id),
+        label: u.name,
+    })),
 ]);
 const typeComboOptions = computed(() => [
     { value: 'all', label: 'Todos los tipos' },
-    ...props.filterOptions.types.map((t) => ({ value: t.value, label: t.label })),
+    ...props.filterOptions.types.map((t) => ({
+        value: t.value,
+        label: t.label,
+    })),
 ]);
 
 function applyFilters() {
@@ -89,8 +100,10 @@ function applyFilters() {
         '/movimientos',
         {
             q: search.value || undefined,
-            company_id: companyFilter.value !== 'all' ? companyFilter.value : undefined,
-            branch_id: branchFilter.value !== 'all' ? branchFilter.value : undefined,
+            company_id:
+                companyFilter.value !== 'all' ? companyFilter.value : undefined,
+            branch_id:
+                branchFilter.value !== 'all' ? branchFilter.value : undefined,
             user_id: userFilter.value !== 'all' ? userFilter.value : undefined,
             type: typeFilter.value !== 'all' ? typeFilter.value : undefined,
             from: from.value || undefined,
@@ -117,7 +130,9 @@ function clearFilters() {
 }
 
 function onCompanyChange() {
-    const branch = props.filterOptions.branches.find((b) => String(b.id) === branchFilter.value);
+    const branch = props.filterOptions.branches.find(
+        (b) => String(b.id) === branchFilter.value,
+    );
 
     if (branch && String(branch.company_id) !== companyFilter.value) {
         branchFilter.value = 'all';
@@ -128,7 +143,9 @@ function onCompanyChange() {
 
 function onBranchChange() {
     if (branchFilter.value !== 'all') {
-        const branch = props.filterOptions.branches.find((b) => String(b.id) === branchFilter.value);
+        const branch = props.filterOptions.branches.find(
+            (b) => String(b.id) === branchFilter.value,
+        );
 
         if (branch) {
             companyFilter.value = String(branch.company_id);
@@ -140,17 +157,25 @@ function onBranchChange() {
 
 const activeFiltersCount = computed(
     () =>
-        [companyFilter.value, branchFilter.value, userFilter.value, typeFilter.value].filter((v) => v !== 'all').length +
+        [
+            companyFilter.value,
+            branchFilter.value,
+            userFilter.value,
+            typeFilter.value,
+        ].filter((v) => v !== 'all').length +
         (from.value ? 1 : 0) +
         (to.value ? 1 : 0),
 );
 
 function formatDate(value: string | null): string {
     if (!value) {
-return '—';
-}
+        return '—';
+    }
 
-    return new Date(value).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+    return new Date(value).toLocaleString('es-MX', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+    });
 }
 </script>
 
@@ -158,7 +183,10 @@ return '—';
     <Head title="Movimientos" />
 
     <div class="flex flex-col gap-6">
-        <PageHeader title="Movimientos" description="Historial global de cambios sobre todos los activos" />
+        <PageHeader
+            title="Movimientos"
+            description="Historial global de cambios sobre todos los activos"
+        />
 
         <FilterBar
             :search="search"
@@ -199,8 +227,16 @@ return '—';
                 class="w-full lg:w-44"
                 @update:model-value="applyFilters"
             />
-            <DatePicker v-model="from" placeholder="Desde" @update:model-value="applyFilters" />
-            <DatePicker v-model="to" placeholder="Hasta" @update:model-value="applyFilters" />
+            <DatePicker
+                v-model="from"
+                placeholder="Desde"
+                @update:model-value="applyFilters"
+            />
+            <DatePicker
+                v-model="to"
+                placeholder="Hasta"
+                @update:model-value="applyFilters"
+            />
         </FilterBar>
 
         <EmptyState
@@ -211,7 +247,9 @@ return '—';
         />
 
         <template v-else>
-            <div class="overflow-x-auto rounded-xl border border-border bg-card">
+            <div
+                class="overflow-x-auto rounded-xl border border-border bg-card"
+            >
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -227,8 +265,16 @@ return '—';
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow v-for="movement in movements.data" :key="movement.id">
-                            <TableCell class="text-sm text-muted-foreground whitespace-nowrap">{{ formatDate(movement.created_at) }}</TableCell>
+                        <TableRow
+                            v-for="movement in movements.data"
+                            :key="movement.id"
+                        >
+                            <TableCell
+                                class="text-sm whitespace-nowrap text-muted-foreground"
+                                >{{
+                                    formatDate(movement.created_at)
+                                }}</TableCell
+                            >
                             <TableCell>
                                 <a
                                     v-if="movement.asset?.public_id"
@@ -238,23 +284,50 @@ return '—';
                                     <LinkIcon class="size-3" />
                                     {{ movement.asset.internal_code }}
                                 </a>
-                                <span v-else class="text-muted-foreground">—</span>
-                                <p v-if="movement.asset" class="text-xs text-muted-foreground">{{ movement.asset.name }}</p>
+                                <span v-else class="text-muted-foreground"
+                                    >—</span
+                                >
+                                <p
+                                    v-if="movement.asset"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    {{ movement.asset.name }}
+                                </p>
                             </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ movement.asset?.company ?? '—' }}</TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ movement.asset?.branch ?? '—' }}</TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ movement.user ?? 'Sistema' }}</TableCell>
-                            <TableCell class="text-sm font-medium text-foreground">{{ movement.type.label }}</TableCell>
-                            <TableCell class="max-w-40 truncate text-sm text-muted-foreground">{{ movement.old_value ?? '—' }}</TableCell>
-                            <TableCell class="max-w-40 truncate text-sm text-muted-foreground">{{ movement.new_value ?? '—' }}</TableCell>
-                            <TableCell class="max-w-56 truncate text-sm text-muted-foreground">{{ movement.comment ?? '—' }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{
+                                movement.asset?.company ?? '—'
+                            }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{
+                                movement.asset?.branch ?? '—'
+                            }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{
+                                movement.user ?? 'Sistema'
+                            }}</TableCell>
+                            <TableCell
+                                class="text-sm font-medium text-foreground"
+                                >{{ movement.type.label }}</TableCell
+                            >
+                            <TableCell
+                                class="max-w-40 truncate text-sm text-muted-foreground"
+                                >{{ movement.old_value ?? '—' }}</TableCell
+                            >
+                            <TableCell
+                                class="max-w-40 truncate text-sm text-muted-foreground"
+                                >{{ movement.new_value ?? '—' }}</TableCell
+                            >
+                            <TableCell
+                                class="max-w-56 truncate text-sm text-muted-foreground"
+                                >{{ movement.comment ?? '—' }}</TableCell
+                            >
                         </TableRow>
                     </TableBody>
                 </Table>
             </div>
 
             <div class="flex items-center justify-between">
-                <p class="text-sm text-muted-foreground">{{ movements.total }} movimientos encontrados</p>
+                <p class="text-sm text-muted-foreground">
+                    {{ movements.total }} movimientos encontrados
+                </p>
                 <Pager :links="movements.links" />
             </div>
         </template>

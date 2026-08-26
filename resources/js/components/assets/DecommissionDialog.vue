@@ -49,7 +49,8 @@ function submit() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Dar de baja este activo</AlertDialogTitle>
                 <AlertDialogDescription>
-                    El activo dejará de contarse como parte del inventario activo, pero todo su historial se conservará.
+                    El activo dejará de contarse como parte del inventario
+                    activo, pero todo su historial se conservará.
                 </AlertDialogDescription>
             </AlertDialogHeader>
 
@@ -62,20 +63,38 @@ function submit() {
                 <div class="grid gap-2">
                     <Label>Motivo</Label>
                     <Select v-model="form.reason">
-                        <SelectTrigger class="w-full"><SelectValue placeholder="Selecciona un motivo" /></SelectTrigger>
+                        <SelectTrigger class="w-full"
+                            ><SelectValue placeholder="Selecciona un motivo"
+                        /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem v-for="reason in reasons" :key="reason.value" :value="reason.value">{{ reason.label }}</SelectItem>
+                            <SelectItem
+                                v-for="reason in reasons"
+                                :key="reason.value"
+                                :value="reason.value"
+                                >{{ reason.label }}</SelectItem
+                            >
                         </SelectContent>
                     </Select>
                     <InputError :message="form.errors.reason" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="decommission-notes">Observaciones (opcional)</Label>
-                    <Textarea id="decommission-notes" v-model="form.notes" rows="2" />
+                    <Label for="decommission-notes"
+                        >Observaciones (opcional)</Label
+                    >
+                    <Textarea
+                        id="decommission-notes"
+                        v-model="form.notes"
+                        rows="2"
+                    />
                     <InputError :message="form.errors.notes" />
                 </div>
                 <AlertDialogFooter>
-                    <Button type="button" variant="secondary" @click="open = false">Cancelar</Button>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        @click="open = false"
+                        >Cancelar</Button
+                    >
                     <Button
                         type="submit"
                         variant="destructive"

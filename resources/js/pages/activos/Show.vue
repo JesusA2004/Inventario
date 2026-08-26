@@ -6,6 +6,7 @@ import {
     ClipboardCheck,
     Download,
     Edit,
+    FileCheck2,
     FileUp,
     ImageOff,
     MapPinned,
@@ -21,9 +22,13 @@ import { toast } from 'vue-sonner';
 import ChangeLocationDialog from '@/components/assets/ChangeLocationDialog.vue';
 import ChangeResponsibleDialog from '@/components/assets/ChangeResponsibleDialog.vue';
 import DecommissionDialog from '@/components/assets/DecommissionDialog.vue';
+import GenerateResponsibilityDialog from '@/components/assets/GenerateResponsibilityDialog.vue';
 import RegisterReviewDialog from '@/components/assets/RegisterReviewDialog.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import LabelSizeDialog from '@/components/labels/LabelSizeDialog.vue';
+import ResponsibilitiesTab from '@/components/responsibilities/ResponsibilitiesTab.vue';
+import type { ResponsibilitySummary } from '@/components/responsibilities/ResponsibilitiesTab.vue';
+import ResponsibilityCreatedDialog from '@/components/responsibilities/ResponsibilityCreatedDialog.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -117,6 +122,7 @@ type AssetDetail = {
         quantity: number;
         status: { value: string; label: string; color: string };
     }[];
+    responsibilities?: ResponsibilitySummary[];
 };
 
 const props = defineProps<{
@@ -128,11 +134,28 @@ const props = defineProps<{
         branches: { id: number; name: string }[];
         departments: { id: number; name: string }[];
         responsiblePeople: { id: number; full_name: string }[];
+        documentSettings: {
+            default_grantor_name: string | null;
+            default_grantor_position: string | null;
+            auto_generate_on_assignment: boolean;
+        };
+        canOverrideGrantor: boolean;
+        needsResponsibilityForCurrentResponsible: boolean;
+        canGenerateResponsibility: boolean;
     };
     labelSizes: LabelSizesConfig;
 }>();
 
 const labelSizeDialogOpen = ref(false);
+
+// Sin responsable actual, la acción es un alta de asignación ("Asignar"); si
+// ya tiene uno, es un reemplazo ("Cambiar responsable"). Mismo diálogo en
+// ambos casos.
+const assignResponsibleLabel = computed(() =>
+    props.asset.currentResponsible
+        ? 'Cambiar responsable'
+        : 'Asignar responsable',
+);
 
 const labelPreviewAsset = computed(() => ({
     type_name: (props.asset.assetType?.name ?? '').toUpperCase(),
@@ -143,7 +166,11 @@ const labelPreviewAsset = computed(() => ({
     qr_image_url: `/activos/${props.asset.public_id}/qr`,
 }));
 
-function printLabel(payload: { size: LabelSizeKey; widthMm: number; heightMm: number }) {
+function printLabel(payload: {
+    size: LabelSizeKey;
+    widthMm: number;
+    heightMm: number;
+}) {
     const params = new URLSearchParams({ size: payload.size });
 
     if (payload.size === 'custom') {
@@ -151,7 +178,10 @@ function printLabel(payload: { size: LabelSizeKey; widthMm: number; heightMm: nu
         params.set('height_mm', String(payload.heightMm));
     }
 
-    window.open(`/activos/${props.asset.public_id}/etiqueta?${params.toString()}`, '_blank');
+    window.open(
+        `/activos/${props.asset.public_id}/etiqueta?${params.toString()}`,
+        '_blank',
+    );
 }
 
 const responsibleDialogOpen = ref(false);
@@ -185,7 +215,11 @@ const uploadForm = useForm<{ type: 'foto' | 'factura'; file: File | null }>({
     file: null,
 });
 
-function uploadFile(type: 'foto' | 'factura', input: HTMLInputElement | null, event: Event) {
+function uploadFile(
+    type: 'foto' | 'factura',
+    input: HTMLInputElement | null,
+    event: Event,
+) {
     const file = (event.target as HTMLInputElement).files?.[0] ?? null;
 
     if (!file) {
@@ -208,7 +242,9 @@ function uploadFile(type: 'foto' | 'factura', input: HTMLInputElement | null, ev
 }
 
 function deleteFile(fileId: number) {
-    router.delete(`/activos/${props.asset.public_id}/archivos/${fileId}`, { preserveScroll: true });
+    router.delete(`/activos/${props.asset.public_id}/archivos/${fileId}`, {
+        preserveScroll: true,
+    });
 }
 
 setLayoutProps({
@@ -221,10 +257,29 @@ setLayoutProps({
     ],
 });
 
+const responsibilityCreatedOpen = ref(false);
+const responsibilityCreated = ref<{
+    public_id: string;
+    receiver_name: string;
+    has_email: boolean;
+} | null>(null);
+const generateResponsibilityDialogOpen = ref(false);
+
 onMounted(() => {
     if (props.justCreated) {
         toast.success('Activo registrado correctamente.');
     }
+
+    router.on('flash', (event) => {
+        const flash = (event as CustomEvent).detail?.flash;
+        const created = flash?.responsibilityCreated as
+            typeof responsibilityCreated.value | undefined;
+
+        if (created) {
+            responsibilityCreated.value = created;
+            responsibilityCreatedOpen.value = true;
+        }
+    });
 });
 
 function formatDate(value: string | null): string {
@@ -264,36 +319,39 @@ function formatDateTime(value: string): string {
                     :alt="asset.name"
                     class="size-20 shrink-0 rounded-xl border border-border object-cover shadow-sm sm:size-24"
                 />
-                <div class="flex size-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-border bg-muted text-muted-foreground/60 sm:size-24" v-else>
+                <div
+                    class="flex size-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-border bg-muted text-muted-foreground/60 sm:size-24"
+                    v-else
+                >
                     <ImageOff class="size-7" />
                 </div>
 
-            <div class="space-y-2">
-                <div class="flex flex-wrap items-center gap-2">
-                    <h1
-                        class="text-2xl font-semibold tracking-tight text-foreground"
-                    >
-                        {{ asset.name }}
-                    </h1>
-                    <StatusBadge
-                        v-if="asset.status"
-                        :label="asset.status.label"
-                        :color="asset.status.color"
-                    />
-                    <Badge v-if="!asset.in_inventory" variant="secondary"
-                        >Fuera de inventario</Badge
-                    >
+                <div class="space-y-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h1
+                            class="text-2xl font-semibold tracking-tight text-foreground"
+                        >
+                            {{ asset.name }}
+                        </h1>
+                        <StatusBadge
+                            v-if="asset.status"
+                            :label="asset.status.label"
+                            :color="asset.status.color"
+                        />
+                        <Badge v-if="!asset.in_inventory" variant="secondary"
+                            >Fuera de inventario</Badge
+                        >
+                    </div>
+                    <p class="font-mono text-sm text-muted-foreground">
+                        {{ asset.internal_code }}
+                    </p>
+                    <p class="text-sm text-muted-foreground">
+                        {{ asset.company?.name }} · {{ asset.branch?.name }}
+                        <span v-if="asset.department">
+                            · {{ asset.department.name }}</span
+                        >
+                    </p>
                 </div>
-                <p class="font-mono text-sm text-muted-foreground">
-                    {{ asset.internal_code }}
-                </p>
-                <p class="text-sm text-muted-foreground">
-                    {{ asset.company?.name }} · {{ asset.branch?.name }}
-                    <span v-if="asset.department">
-                        · {{ asset.department.name }}</span
-                    >
-                </p>
-            </div>
             </div>
 
             <div class="flex items-center gap-2">
@@ -311,16 +369,23 @@ function formatDateTime(value: string): string {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuItem as-child>
-                            <Link :href="`/activos/${asset.public_id}/editar`">Editar</Link>
+                            <Link :href="`/activos/${asset.public_id}/editar`"
+                                >Editar</Link
+                            >
                         </DropdownMenuItem>
-                        <DropdownMenuItem @click="labelSizeDialogOpen = true">Imprimir etiqueta</DropdownMenuItem>
+                        <DropdownMenuItem @click="labelSizeDialogOpen = true"
+                            >Imprimir etiqueta</DropdownMenuItem
+                        >
                         <DropdownMenuItem as-child>
-                            <a :href="`/activos/${asset.public_id}/qr/descargar`">Descargar QR</a>
+                            <a
+                                :href="`/activos/${asset.public_id}/qr/descargar`"
+                                >Descargar QR</a
+                            >
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem @click="responsibleDialogOpen = true">
                             <UserCog class="mr-2 size-4" />
-                            Cambiar responsable
+                            {{ assignResponsibleLabel }}
                         </DropdownMenuItem>
                         <DropdownMenuItem @click="locationDialogOpen = true">
                             <MapPinned class="mr-2 size-4" />
@@ -331,7 +396,9 @@ function formatDateTime(value: string): string {
                             Registrar revisión
                         </DropdownMenuItem>
                         <DropdownMenuItem v-if="asset.in_inventory" as-child>
-                            <Link :href="`/prestamos/crear?asset_id=${asset.public_id}`">
+                            <Link
+                                :href="`/prestamos/crear?asset_id=${asset.public_id}`"
+                            >
                                 <UsersRound class="mr-2 size-4" />
                                 Prestar
                             </Link>
@@ -345,7 +412,10 @@ function formatDateTime(value: string): string {
                             <Ban class="mr-2 size-4" />
                             Dar de baja
                         </DropdownMenuItem>
-                        <DropdownMenuItem v-else @click="reactivateConfirmOpen = true">
+                        <DropdownMenuItem
+                            v-else
+                            @click="reactivateConfirmOpen = true"
+                        >
                             <RotateCcw class="mr-2 size-4" />
                             Reactivar
                         </DropdownMenuItem>
@@ -358,6 +428,7 @@ function formatDateTime(value: string): string {
             <TabsList class="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="general">General</TabsTrigger>
                 <TabsTrigger value="asignacion">Asignación</TabsTrigger>
+                <TabsTrigger value="responsivas">Responsivas</TabsTrigger>
                 <TabsTrigger value="historial">Historial</TabsTrigger>
                 <TabsTrigger value="prestamos">Préstamos</TabsTrigger>
                 <TabsTrigger value="revisiones">Revisiones</TabsTrigger>
@@ -480,7 +551,9 @@ function formatDateTime(value: string): string {
             </TabsContent>
 
             <TabsContent value="asignacion" class="space-y-4">
-                <div class="grid gap-4 rounded-xl border border-border bg-card p-4 sm:grid-cols-2">
+                <div
+                    class="grid gap-4 rounded-xl border border-border bg-card p-4 sm:grid-cols-2"
+                >
                     <div>
                         <p class="text-xs text-muted-foreground">
                             Responsable actual
@@ -501,10 +574,34 @@ function formatDateTime(value: string): string {
                         </p>
                     </div>
                 </div>
-                <Button variant="outline" @click="responsibleDialogOpen = true">
-                    <UserCog class="mr-1 size-4" />
-                    Cambiar responsable
-                </Button>
+                <div class="flex flex-wrap gap-2">
+                    <Button
+                        variant="outline"
+                        @click="responsibleDialogOpen = true"
+                    >
+                        <UserCog class="mr-1 size-4" />
+                        {{ assignResponsibleLabel }}
+                    </Button>
+                    <Button
+                        v-if="actionOptions.canGenerateResponsibility"
+                        variant="outline"
+                        @click="generateResponsibilityDialogOpen = true"
+                    >
+                        <FileCheck2 class="mr-1 size-4" />
+                        {{
+                            actionOptions.needsResponsibilityForCurrentResponsible
+                                ? 'Generar responsiva'
+                                : 'Generar nueva responsiva'
+                        }}
+                    </Button>
+                </div>
+            </TabsContent>
+
+            <TabsContent value="responsivas" class="space-y-4">
+                <ResponsibilitiesTab
+                    :responsibilities="asset.responsibilities ?? []"
+                    context="asset"
+                />
             </TabsContent>
 
             <TabsContent value="historial">
@@ -553,7 +650,10 @@ function formatDateTime(value: string): string {
             </TabsContent>
 
             <TabsContent value="prestamos" class="space-y-4">
-                <Link v-if="asset.in_inventory" :href="`/prestamos/crear?asset_id=${asset.public_id}`">
+                <Link
+                    v-if="asset.in_inventory"
+                    :href="`/prestamos/crear?asset_id=${asset.public_id}`"
+                >
                     <Button variant="outline">
                         <UsersRound class="mr-1 size-4" />
                         Prestar
@@ -626,9 +726,7 @@ function formatDateTime(value: string): string {
                         </div>
                         <p class="text-xs text-muted-foreground">
                             Ubicación
-                            {{
-                                review.location_ok ? 'correcta' : 'incorrecta'
-                            }}
+                            {{ review.location_ok ? 'correcta' : 'incorrecta' }}
                             · Responsable
                             {{
                                 review.responsible_ok
@@ -657,9 +755,15 @@ function formatDateTime(value: string): string {
                     v-if="asset.parts.length === 0"
                     class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground"
                 >
-                    Este activo no tiene piezas o componentes vinculados. Vincúlalos desde
-                    <Link href="/piezas/crear" class="text-primary hover:underline">Piezas y refacciones</Link>
-                    marcando "Ensamblada" y eligiendo este activo como el equipo al que pertenecen.
+                    Este activo no tiene piezas o componentes vinculados.
+                    Vincúlalos desde
+                    <Link
+                        href="/piezas/crear"
+                        class="text-primary hover:underline"
+                        >Piezas y refacciones</Link
+                    >
+                    marcando "Ensamblada" y eligiendo este activo como el equipo
+                    al que pertenecen.
                 </div>
                 <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <Link
@@ -669,36 +773,72 @@ function formatDateTime(value: string): string {
                         class="rounded-xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
                     >
                         <div class="flex items-start justify-between gap-2">
-                            <p class="truncate text-sm font-medium text-foreground">{{ part.name }}</p>
-                            <StatusBadge :label="part.status.label" :color="part.status.color" class="shrink-0" />
+                            <p
+                                class="truncate text-sm font-medium text-foreground"
+                            >
+                                {{ part.name }}
+                            </p>
+                            <StatusBadge
+                                :label="part.status.label"
+                                :color="part.status.color"
+                                class="shrink-0"
+                            />
                         </div>
-                        <p class="font-mono text-xs text-muted-foreground">{{ part.internal_code }}</p>
-                        <dl class="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
+                        <p class="font-mono text-xs text-muted-foreground">
+                            {{ part.internal_code }}
+                        </p>
+                        <dl
+                            class="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs"
+                        >
                             <div v-if="part.brand">
                                 <dt class="text-muted-foreground">Marca</dt>
-                                <dd class="truncate font-medium text-foreground">{{ part.brand }}</dd>
+                                <dd
+                                    class="truncate font-medium text-foreground"
+                                >
+                                    {{ part.brand }}
+                                </dd>
                             </div>
                             <div v-if="part.part_number">
-                                <dt class="text-muted-foreground">Número de parte</dt>
-                                <dd class="truncate font-medium text-foreground">{{ part.part_number }}</dd>
+                                <dt class="text-muted-foreground">
+                                    Número de parte
+                                </dt>
+                                <dd
+                                    class="truncate font-medium text-foreground"
+                                >
+                                    {{ part.part_number }}
+                                </dd>
                             </div>
                             <div v-if="part.serial_number">
                                 <dt class="text-muted-foreground">Serie</dt>
-                                <dd class="truncate font-medium text-foreground">{{ part.serial_number }}</dd>
+                                <dd
+                                    class="truncate font-medium text-foreground"
+                                >
+                                    {{ part.serial_number }}
+                                </dd>
                             </div>
                             <div>
                                 <dt class="text-muted-foreground">Cantidad</dt>
-                                <dd class="font-medium text-foreground">{{ part.quantity }}</dd>
+                                <dd class="font-medium text-foreground">
+                                    {{ part.quantity }}
+                                </dd>
                             </div>
                         </dl>
-                        <Badge :variant="part.assembled ? 'default' : 'outline'" class="mt-2">
-                            {{ part.assembled ? 'Ensamblada en este equipo' : 'No ensamblada' }}
+                        <Badge
+                            :variant="part.assembled ? 'default' : 'outline'"
+                            class="mt-2"
+                        >
+                            {{
+                                part.assembled
+                                    ? 'Ensamblada en este equipo'
+                                    : 'No ensamblada'
+                            }}
                         </Badge>
                     </Link>
                 </div>
                 <p class="text-xs text-muted-foreground">
-                    Este equipo está armado con las piezas anteriores (procesador, memoria, etc.). Una pieza también puede
-                    existir suelta, sin estar asignada a ningún activo.
+                    Este equipo está armado con las piezas anteriores
+                    (procesador, memoria, etc.). Una pieza también puede existir
+                    suelta, sin estar asignada a ningún activo.
                 </p>
             </TabsContent>
 
@@ -710,7 +850,9 @@ function formatDateTime(value: string): string {
                         accept="image/*"
                         capture="environment"
                         class="hidden"
-                        @change="(event) => uploadFile('foto', photoInput, event)"
+                        @change="
+                            (event) => uploadFile('foto', photoInput, event)
+                        "
                     />
                     <Button
                         type="button"
@@ -726,7 +868,10 @@ function formatDateTime(value: string): string {
                         type="file"
                         accept=".pdf,image/*"
                         class="hidden"
-                        @change="(event) => uploadFile('factura', invoiceInput, event)"
+                        @change="
+                            (event) =>
+                                uploadFile('factura', invoiceInput, event)
+                        "
                     />
                     <Button
                         type="button"
@@ -743,8 +888,8 @@ function formatDateTime(value: string): string {
                     v-if="asset.files.length === 0"
                     class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground"
                 >
-                    No hay archivos adjuntos todavía. Usa los botones de arriba para tomar una foto con el teléfono o subir
-                    un archivo.
+                    No hay archivos adjuntos todavía. Usa los botones de arriba
+                    para tomar una foto con el teléfono o subir un archivo.
                 </div>
                 <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div
@@ -776,13 +921,27 @@ function formatDateTime(value: string): string {
             </TabsContent>
 
             <TabsContent value="qr">
-                <div class="flex flex-col items-center gap-4 rounded-xl border border-border bg-card p-8 text-center">
-                    <img :src="`/activos/${asset.public_id}/qr`" alt="Código QR" class="size-56 rounded-lg border border-border p-2" />
+                <div
+                    class="flex flex-col items-center gap-4 rounded-xl border border-border bg-card p-8 text-center"
+                >
+                    <img
+                        :src="`/activos/${asset.public_id}/qr`"
+                        alt="Código QR"
+                        class="size-56 rounded-lg border border-border p-2"
+                    />
                     <div>
-                        <p class="font-mono text-sm font-medium text-foreground">{{ asset.internal_code }}</p>
-                        <p class="text-xs break-all text-muted-foreground">{{ qrUrl }}</p>
+                        <p
+                            class="font-mono text-sm font-medium text-foreground"
+                        >
+                            {{ asset.internal_code }}
+                        </p>
+                        <p class="text-xs break-all text-muted-foreground">
+                            {{ qrUrl }}
+                        </p>
                     </div>
-                    <div class="flex flex-wrap items-center justify-center gap-2">
+                    <div
+                        class="flex flex-wrap items-center justify-center gap-2"
+                    >
                         <a :href="`/activos/${asset.public_id}/qr/descargar`">
                             <Button variant="outline">
                                 <Download class="mr-1 size-4" />
@@ -795,7 +954,9 @@ function formatDateTime(value: string): string {
                         </Button>
                     </div>
                     <p class="max-w-sm text-xs text-muted-foreground">
-                        Este código es permanente: seguirá funcionando aunque cambies la clave, marca, sucursal o responsable del activo.
+                        Este código es permanente: seguirá funcionando aunque
+                        cambies la clave, marca, sucursal o responsable del
+                        activo.
                     </p>
                 </div>
             </TabsContent>
@@ -807,6 +968,19 @@ function formatDateTime(value: string): string {
         :asset-public-id="asset.public_id"
         :current-responsible-id="asset.currentResponsible?.id ?? null"
         :responsible-people="actionOptions.responsiblePeople"
+        :document-settings="actionOptions.documentSettings"
+        :can-override-grantor="actionOptions.canOverrideGrantor"
+    />
+    <GenerateResponsibilityDialog
+        v-model:open="generateResponsibilityDialogOpen"
+        :asset-public-id="asset.public_id"
+        :already-has-one="
+            !actionOptions.needsResponsibilityForCurrentResponsible
+        "
+    />
+    <ResponsibilityCreatedDialog
+        v-model:open="responsibilityCreatedOpen"
+        :responsibility="responsibilityCreated"
     />
     <ChangeLocationDialog
         v-model:open="locationDialogOpen"
@@ -816,7 +990,10 @@ function formatDateTime(value: string): string {
         :branches="actionOptions.branches"
         :departments="actionOptions.departments"
     />
-    <RegisterReviewDialog v-model:open="reviewDialogOpen" :asset-public-id="asset.public_id" />
+    <RegisterReviewDialog
+        v-model:open="reviewDialogOpen"
+        :asset-public-id="asset.public_id"
+    />
     <DecommissionDialog
         v-model:open="decommissionDialogOpen"
         :asset-public-id="asset.public_id"

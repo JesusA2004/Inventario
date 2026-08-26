@@ -13,7 +13,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 class ReportExport implements Export, WithMultipleSheets
 {
     public function __construct(
-        private readonly object $dataSheet,
+        private readonly Export $dataSheet,
         private readonly ReportSummarySheet $summarySheet,
     ) {}
 

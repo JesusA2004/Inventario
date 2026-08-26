@@ -24,6 +24,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -42,11 +49,13 @@ type AssetType = {
     icon: string | null;
     active: boolean;
     assets_count: number;
+    responsibility_profile: string;
 };
 
 const props = defineProps<{
     assetTypes: AssetType[];
     filters: { q?: string };
+    responsibilityProfileOptions: { value: string; label: string }[];
 }>();
 
 defineOptions({
@@ -68,7 +77,13 @@ function applySearch(value: string) {
 
 const dialogOpen = ref(false);
 const editing = ref<AssetType | null>(null);
-const form = useForm({ name: '', code: '', icon: '', active: true });
+const form = useForm({
+    name: '',
+    code: '',
+    icon: '',
+    active: true,
+    responsibility_profile: 'general',
+});
 
 function openCreate() {
     editing.value = null;
@@ -83,6 +98,7 @@ function openEdit(assetType: AssetType) {
     form.code = assetType.code;
     form.icon = assetType.icon ?? '';
     form.active = assetType.active;
+    form.responsibility_profile = assetType.responsibility_profile;
     form.clearErrors();
     dialogOpen.value = true;
 }
@@ -108,6 +124,7 @@ function toggleActive(assetType: AssetType) {
             code: assetType.code,
             icon: assetType.icon,
             active: !assetType.active,
+            responsibility_profile: assetType.responsibility_profile,
         },
         { preserveScroll: true },
     );
@@ -273,6 +290,30 @@ function destroy() {
                     />
                     <InputError :message="form.errors.code" />
                 </div>
+                <div class="grid gap-2">
+                    <Label>Perfil de responsiva</Label>
+                    <Select v-model="form.responsibility_profile">
+                        <SelectTrigger class="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="profile in responsibilityProfileOptions"
+                                :key="profile.value"
+                                :value="profile.value"
+                            >
+                                {{ profile.label }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p class="text-xs text-muted-foreground">
+                        Determina el título de la responsiva de equipo generada
+                        para este tipo (p. ej. "Responsiva de dispositivo
+                        móvil").
+                    </p>
+                    <InputError :message="form.errors.responsibility_profile" />
+                </div>
+
                 <div
                     class="flex items-center justify-between rounded-lg border border-border p-3"
                 >

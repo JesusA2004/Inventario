@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Boxes, CheckSquare, Download, FileArchive, LayoutGrid, List, Plus, QrCode, Square, X } from '@lucide/vue';
+import {
+    Boxes,
+    CheckSquare,
+    Download,
+    FileArchive,
+    LayoutGrid,
+    List,
+    Plus,
+    QrCode,
+    Square,
+    X,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import AssetCard from '@/components/assets/AssetCard.vue';
 import Combobox from '@/components/Combobox.vue';
@@ -28,7 +39,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { getJson } from '@/lib/http';
-import type { LabelColumns, LabelSizeKey, LabelSizesConfig } from '@/lib/labelSizes';
+import type {
+    LabelColumns,
+    LabelSizeKey,
+    LabelSizesConfig,
+} from '@/lib/labelSizes';
 import type { AssetListItem, Paginated, StatusOption } from '@/types/assets';
 
 type FilterOptions = {
@@ -74,7 +89,10 @@ const branchOptions = computed(() =>
 
 const companyComboOptions = computed(() => [
     { value: 'all', label: 'Todas las empresas' },
-    ...props.filterOptions.companies.map((c) => ({ value: String(c.id), label: c.name })),
+    ...props.filterOptions.companies.map((c) => ({
+        value: String(c.id),
+        label: c.name,
+    })),
 ]);
 const branchComboOptions = computed(() => [
     { value: 'all', label: 'Todas las sucursales' },
@@ -82,37 +100,60 @@ const branchComboOptions = computed(() => [
 ]);
 const departmentComboOptions = computed(() => [
     { value: 'all', label: 'Todas las áreas' },
-    ...props.filterOptions.departments.map((d) => ({ value: String(d.id), label: d.name })),
+    ...props.filterOptions.departments.map((d) => ({
+        value: String(d.id),
+        label: d.name,
+    })),
 ]);
 const assetTypeComboOptions = computed(() => [
     { value: 'all', label: 'Todos los tipos' },
-    ...props.filterOptions.assetTypes.map((t) => ({ value: String(t.id), label: t.name })),
+    ...props.filterOptions.assetTypes.map((t) => ({
+        value: String(t.id),
+        label: t.name,
+    })),
 ]);
 const brandComboOptions = computed(() => [
     { value: 'all', label: 'Todas las marcas' },
-    ...props.filterOptions.brands.map((b) => ({ value: String(b.id), label: b.name })),
+    ...props.filterOptions.brands.map((b) => ({
+        value: String(b.id),
+        label: b.name,
+    })),
 ]);
 const responsibleComboOptions = computed(() => [
     { value: 'all', label: 'Todos los responsables' },
-    ...props.filterOptions.responsiblePeople.map((r) => ({ value: String(r.id), label: r.full_name })),
+    ...props.filterOptions.responsiblePeople.map((r) => ({
+        value: String(r.id),
+        label: r.full_name,
+    })),
 ]);
 const statusComboOptions = computed(() => [
     { value: 'all', label: 'Todos los estatus' },
-    ...props.filterOptions.statuses.map((s) => ({ value: s.value, label: s.label })),
+    ...props.filterOptions.statuses.map((s) => ({
+        value: s.value,
+        label: s.label,
+    })),
 ]);
 
 function onCompanyFilterChange() {
     // Encadenamiento hacia adelante: si la sucursal/área/responsable
     // seleccionados no pertenecen a la nueva empresa, se limpian.
-    const branch = props.filterOptions.branches.find((b) => String(b.id) === filterState.value.branch_id);
+    const branch = props.filterOptions.branches.find(
+        (b) => String(b.id) === filterState.value.branch_id,
+    );
 
     if (branch && String(branch.company_id) !== filterState.value.company_id) {
         filterState.value.branch_id = 'all';
     }
 
-    const department = props.filterOptions.departments.find((d) => String(d.id) === filterState.value.department_id);
+    const department = props.filterOptions.departments.find(
+        (d) => String(d.id) === filterState.value.department_id,
+    );
 
-    if (department && department.company_id !== null && String(department.company_id) !== filterState.value.company_id) {
+    if (
+        department &&
+        department.company_id !== null &&
+        String(department.company_id) !== filterState.value.company_id
+    ) {
         filterState.value.department_id = 'all';
     }
 
@@ -123,7 +164,9 @@ function onBranchFilterChange() {
     // Encadenamiento inverso: elegir una sucursal directamente autoselecciona
     // su empresa, ya que están ligadas.
     if (filterState.value.branch_id !== 'all') {
-        const branch = props.filterOptions.branches.find((b) => String(b.id) === filterState.value.branch_id);
+        const branch = props.filterOptions.branches.find(
+            (b) => String(b.id) === filterState.value.branch_id,
+        );
 
         if (branch) {
             filterState.value.company_id = String(branch.company_id);
@@ -153,7 +196,9 @@ function applySearch(value: string) {
 function clearFilters() {
     search.value = '';
 
-    for (const key of Object.keys(filterState.value) as (keyof typeof filterState.value)[]) {
+    for (const key of Object.keys(
+        filterState.value,
+    ) as (keyof typeof filterState.value)[]) {
         filterState.value[key] = 'all';
     }
 
@@ -199,7 +244,9 @@ function toggleQrMode() {
 }
 
 function currentFilterParams(): Record<string, string | undefined> {
-    const params: Record<string, string | undefined> = { q: search.value || undefined };
+    const params: Record<string, string | undefined> = {
+        q: search.value || undefined,
+    };
 
     for (const [key, value] of Object.entries(filterState.value)) {
         params[key] = value !== 'all' ? value : undefined;
@@ -214,7 +261,10 @@ function currentFilterParams(): Record<string, string | undefined> {
  * antes de poder quitar uno solo.
  */
 async function materializeAllFilteredSelection() {
-    const result = await getJson<{ ids: number[]; total: number }>('/activos/ids-filtrados', currentFilterParams());
+    const result = await getJson<{ ids: number[]; total: number }>(
+        '/activos/ids-filtrados',
+        currentFilterParams(),
+    );
     selectionMode.value = 'ids';
     selected.value = new Set(result.ids);
 }
@@ -240,7 +290,8 @@ async function toggleSelect(id: number) {
 const allOnPageSelected = computed(
     () =>
         props.assets.data.length > 0 &&
-        (selectionMode.value === 'all_filtered' || props.assets.data.every((a) => selected.value.has(a.id))),
+        (selectionMode.value === 'all_filtered' ||
+            props.assets.data.every((a) => selected.value.has(a.id))),
 );
 
 function selectAllOnPage() {
@@ -259,9 +310,16 @@ function selectAllFiltered() {
     selected.value = new Set();
 }
 
-const selectedCount = computed(() => (selectionMode.value === 'all_filtered' ? props.assets.total : selected.value.size));
+const selectedCount = computed(() =>
+    selectionMode.value === 'all_filtered'
+        ? props.assets.total
+        : selected.value.size,
+);
 
-function submitSelectionForm(action: string, extraFields: Record<string, string> = {}) {
+function submitSelectionForm(
+    action: string,
+    extraFields: Record<string, string> = {},
+) {
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = action;
@@ -270,13 +328,18 @@ function submitSelectionForm(action: string, extraFields: Record<string, string>
     const csrf = document.createElement('input');
     csrf.type = 'hidden';
     csrf.name = '_token';
-    csrf.value = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+    csrf.value =
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? '';
     form.appendChild(csrf);
 
     const fields: Record<string, string | undefined> = {
         ...extraFields,
         selection_mode: selectionMode.value,
-        ...(selectionMode.value === 'all_filtered' ? currentFilterParams() : {}),
+        ...(selectionMode.value === 'all_filtered'
+            ? currentFilterParams()
+            : {}),
     };
 
     for (const [name, value] of Object.entries(fields)) {
@@ -313,13 +376,17 @@ const firstSelectedAsset = computed(() => {
         return props.assets.data[0] ?? null;
     }
 
-    return props.assets.data.find((asset) => selected.value.has(asset.id)) ?? null;
+    return (
+        props.assets.data.find((asset) => selected.value.has(asset.id)) ?? null
+    );
 });
 
 const previewAsset = computed(() =>
     firstSelectedAsset.value
         ? {
-              type_name: (firstSelectedAsset.value.assetType?.name ?? '').toUpperCase(),
+              type_name: (
+                  firstSelectedAsset.value.assetType?.name ?? ''
+              ).toUpperCase(),
               name: firstSelectedAsset.value.name,
               internal_code: firstSelectedAsset.value.internal_code,
               serial_number: firstSelectedAsset.value.serial_number,
@@ -329,7 +396,12 @@ const previewAsset = computed(() =>
         : null,
 );
 
-function generateLabels(payload: { size: LabelSizeKey; columns: LabelColumns; widthMm: number; heightMm: number }) {
+function generateLabels(payload: {
+    size: LabelSizeKey;
+    columns: LabelColumns;
+    widthMm: number;
+    heightMm: number;
+}) {
     submitSelectionForm('/etiquetas/pdf', {
         columns: String(payload.columns),
         size: payload.size,
@@ -353,11 +425,17 @@ function downloadQrZip() {
             help-text="Un activo es un equipo completo (laptop, monitor, impresora). Sus componentes internos o accesorios sueltos se registran como piezas y se vinculan aquí desde la pestaña Piezas."
         >
             <template #actions>
-                <div class="flex items-center rounded-lg border border-border p-0.5">
+                <div
+                    class="flex items-center rounded-lg border border-border p-0.5"
+                >
                     <button
                         type="button"
                         class="rounded-md p-1.5 transition-colors"
-                        :class="viewMode === 'cards' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'"
+                        :class="
+                            viewMode === 'cards'
+                                ? 'bg-accent text-accent-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                        "
                         title="Vista de tarjetas"
                         @click="viewMode = 'cards'"
                     >
@@ -366,14 +444,21 @@ function downloadQrZip() {
                     <button
                         type="button"
                         class="rounded-md p-1.5 transition-colors"
-                        :class="viewMode === 'table' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'"
+                        :class="
+                            viewMode === 'table'
+                                ? 'bg-accent text-accent-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                        "
                         title="Vista de tabla"
                         @click="viewMode = 'table'"
                     >
                         <List class="size-4" />
                     </button>
                 </div>
-                <Button :variant="qrMode ? 'default' : 'outline'" @click="toggleQrMode">
+                <Button
+                    :variant="qrMode ? 'default' : 'outline'"
+                    @click="toggleQrMode"
+                >
                     <component :is="qrMode ? X : QrCode" class="mr-1 size-4" />
                     {{ qrMode ? 'Cancelar selección' : 'Generar etiquetas QR' }}
                 </Button>
@@ -397,28 +482,53 @@ function downloadQrZip() {
             class="flex flex-col gap-3 rounded-xl border border-primary/30 bg-accent/40 p-3 sm:flex-row sm:items-center sm:justify-between"
         >
             <div class="flex flex-wrap items-center gap-2">
-                <Button variant="ghost" size="sm" @click="allOnPageSelected ? clearSelection() : selectAllOnPage()">
-                    <component :is="allOnPageSelected ? CheckSquare : Square" class="mr-1 size-4" />
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    @click="
+                        allOnPageSelected ? clearSelection() : selectAllOnPage()
+                    "
+                >
+                    <component
+                        :is="allOnPageSelected ? CheckSquare : Square"
+                        class="mr-1 size-4"
+                    />
                     Seleccionar página
                 </Button>
                 <Button variant="ghost" size="sm" @click="selectAllFiltered">
                     <CheckSquare class="mr-1 size-4" />
                     Seleccionar los {{ assets.total }} resultados
                 </Button>
-                <Button variant="ghost" size="sm" :disabled="selectedCount === 0" @click="clearSelection">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    :disabled="selectedCount === 0"
+                    @click="clearSelection"
+                >
                     Limpiar selección
                 </Button>
                 <span class="text-sm text-muted-foreground">
                     {{ selectedCount }} seleccionados
-                    <template v-if="selectionMode === 'all_filtered'">(todos los resultados filtrados)</template>
+                    <template v-if="selectionMode === 'all_filtered'"
+                        >(todos los resultados filtrados)</template
+                    >
                 </span>
             </div>
             <div class="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" :disabled="selectedCount === 0" @click="downloadQrZip">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="selectedCount === 0"
+                    @click="downloadQrZip"
+                >
                     <FileArchive class="mr-1 size-4" />
                     Descargar QR (.zip)
                 </Button>
-                <Button size="sm" :disabled="selectedCount === 0" @click="sizeDialogOpen = true">
+                <Button
+                    size="sm"
+                    :disabled="selectedCount === 0"
+                    @click="sizeDialogOpen = true"
+                >
                     <Download class="mr-1 size-4" />
                     Generar etiquetas ({{ selectedCount }})
                 </Button>
@@ -529,7 +639,10 @@ function downloadQrZip() {
 
         <template v-else>
             <!-- Galería de tarjetas con foto (vista por defecto) -->
-            <div v-if="viewMode === 'cards'" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div
+                v-if="viewMode === 'cards'"
+                class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+            >
                 <AssetCard
                     v-for="asset in assets.data"
                     :key="asset.id"
@@ -551,7 +664,11 @@ function downloadQrZip() {
                             <TableHead v-if="qrMode" class="w-10">
                                 <Checkbox
                                     :model-value="allOnPageSelected"
-                                    @update:model-value="allOnPageSelected ? clearSelection() : selectAllOnPage()"
+                                    @update:model-value="
+                                        allOnPageSelected
+                                            ? clearSelection()
+                                            : selectAllOnPage()
+                                    "
                                 />
                             </TableHead>
                             <TableHead>Clave</TableHead>
@@ -571,10 +688,21 @@ function downloadQrZip() {
                             v-for="asset in assets.data"
                             :key="asset.id"
                             class="cursor-pointer"
-                            :class="qrMode && isSelected(asset.id) && 'bg-accent/40'"
-                            @click="qrMode ? toggleSelect(asset.id) : router.visit(`/activos/${asset.public_id}`)"
+                            :class="
+                                qrMode && isSelected(asset.id) && 'bg-accent/40'
+                            "
+                            @click="
+                                qrMode
+                                    ? toggleSelect(asset.id)
+                                    : router.visit(
+                                          `/activos/${asset.public_id}`,
+                                      )
+                            "
                         >
-                            <TableCell v-if="qrMode" @click.stop="toggleSelect(asset.id)">
+                            <TableCell
+                                v-if="qrMode"
+                                @click.stop="toggleSelect(asset.id)"
+                            >
                                 <Checkbox :model-value="isSelected(asset.id)" />
                             </TableCell>
                             <TableCell class="font-mono text-sm">{{

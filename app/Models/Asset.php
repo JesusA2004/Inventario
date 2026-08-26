@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\AssetFileType;
 use App\Enums\AssetStatus;
 use App\Enums\LoanStatus;
+use Database\Factories\AssetFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +16,7 @@ use Illuminate\Support\Str;
 
 class Asset extends Model
 {
+    /** @use HasFactory<AssetFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -64,41 +67,65 @@ class Asset extends Model
         });
     }
 
+    /**
+     * @return BelongsTo<Company, $this>
+     */
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
     }
 
+    /**
+     * @return BelongsTo<Branch, $this>
+     */
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
     }
 
+    /**
+     * @return BelongsTo<Department, $this>
+     */
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
 
+    /**
+     * @return BelongsTo<AssetType, $this>
+     */
     public function assetType(): BelongsTo
     {
         return $this->belongsTo(AssetType::class);
     }
 
+    /**
+     * @return BelongsTo<Brand, $this>
+     */
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
     }
 
+    /**
+     * @return BelongsTo<ResponsiblePerson, $this>
+     */
     public function currentResponsible(): BelongsTo
     {
         return $this->belongsTo(ResponsiblePerson::class, 'current_responsible_id');
     }
 
+    /**
+     * @return BelongsTo<ResponsiblePerson, $this>
+     */
     public function deliveredByResponsible(): BelongsTo
     {
         return $this->belongsTo(ResponsiblePerson::class, 'delivered_by_responsible_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -114,32 +141,57 @@ class Asset extends Model
 
     /**
      * La foto más reciente del activo, usada como miniatura en el listado.
+     *
+     * @return HasOne<AssetFile, $this>
      */
     public function latestPhoto(): HasOne
     {
         return $this->hasOne(AssetFile::class)->where('type', AssetFileType::Foto)->latestOfMany();
     }
 
+    /**
+     * @return HasMany<AssetMovement, $this>
+     */
     public function movements(): HasMany
     {
         return $this->hasMany(AssetMovement::class)->latest();
     }
 
+    /**
+     * @return HasMany<AssetResponsibility, $this>
+     */
+    public function responsibilities(): HasMany
+    {
+        return $this->hasMany(AssetResponsibility::class)->latest('issued_at');
+    }
+
+    /**
+     * @return HasMany<AssetReview, $this>
+     */
     public function reviews(): HasMany
     {
         return $this->hasMany(AssetReview::class)->latest('reviewed_at');
     }
 
+    /**
+     * @return HasMany<Loan, $this>
+     */
     public function loans(): HasMany
     {
         return $this->hasMany(Loan::class)->latest('loan_date');
     }
 
+    /**
+     * @return HasMany<Part, $this>
+     */
     public function parts(): HasMany
     {
         return $this->hasMany(Part::class, 'related_asset_id');
     }
 
+    /**
+     * @return HasMany<AuditItem, $this>
+     */
     public function auditItems(): HasMany
     {
         return $this->hasMany(AuditItem::class);
@@ -150,7 +202,11 @@ class Asset extends Model
         return $this->loans()->where('status', LoanStatus::Prestado)->first();
     }
 
-    public function scopeInInventory($query)
+    /**
+     * @param  Builder<Asset>  $query
+     * @return Builder<Asset>
+     */
+    public function scopeInInventory(Builder $query): Builder
     {
         return $query->where('in_inventory', true);
     }

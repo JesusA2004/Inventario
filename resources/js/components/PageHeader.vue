@@ -17,7 +17,9 @@ withDefaults(
     >
         <div class="space-y-1">
             <div class="flex items-center gap-1.5">
-                <h1 class="text-2xl font-semibold tracking-tight text-foreground">
+                <h1
+                    class="text-2xl font-semibold tracking-tight text-foreground"
+                >
                     {{ title }}
                 </h1>
                 <HelpTip v-if="helpText" :text="helpText" />

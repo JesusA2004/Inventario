@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Enums\AuditItemStatus;
 use App\Models\Audit;
 use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -14,7 +15,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
  * @implements FromCollection<int, Audit>
  * @implements WithMapping<Audit>
  */
-class AuditsExport implements FromCollection, WithHeadings, WithMapping, WithTitle
+class AuditsExport implements Export, FromCollection, WithHeadings, WithMapping, WithTitle
 {
     /**
      * @param  Collection<int, Audit>  $audits
@@ -50,7 +51,7 @@ class AuditsExport implements FromCollection, WithHeadings, WithMapping, WithTit
             $audit->branch?->name,
             $audit->department?->name,
             $audit->status->label(),
-            $audit->started_at?->format('d/m/Y H:i'),
+            $audit->started_at->format('d/m/Y H:i'),
             $audit->finished_at?->format('d/m/Y H:i'),
             $audit->items->count(),
             $audit->items->where('status', AuditItemStatus::Encontrado)->count(),

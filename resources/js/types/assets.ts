@@ -17,6 +17,12 @@ export type ResponsibleOption = {
     department_id: number | null;
 };
 
+export type DocumentSettingsOption = {
+    default_grantor_name: string | null;
+    default_grantor_position: string | null;
+    auto_generate_on_assignment: boolean;
+};
+
 export type AssetFormOptions = {
     companies: CompanyOption[];
     branches: BranchOption[];
@@ -25,6 +31,7 @@ export type AssetFormOptions = {
     brands: BrandOption[];
     responsiblePeople: ResponsibleOption[];
     statuses: StatusOption[];
+    documentSettingsByCompany: Record<number, DocumentSettingsOption>;
 };
 
 export type AssetListItem = {
@@ -88,4 +95,10 @@ export type AssetFormData = {
     acquired_at: string | null;
     last_reviewed_at: string | null;
     create_another?: boolean;
+    // Solo usados en el alta, para ofrecer generar la responsiva de entrega
+    // junto con el activo; el edit no los necesita.
+    generate_responsibility?: boolean;
+    grantor_name?: string;
+    grantor_position?: string;
+    grantor_email?: string;
 };

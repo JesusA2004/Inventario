@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Assets;
 
 use App\Enums\AssetStatus;
+use App\Models\Asset;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\ResponsiblePerson;
@@ -13,9 +14,13 @@ use Illuminate\Validation\Rules\Enum;
 
 class AssetRequest extends FormRequest
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
-        $assetId = $this->route('asset')?->id;
+        $routeAsset = $this->route('asset');
+        $assetId = $routeAsset instanceof Asset ? $routeAsset->id : null;
 
         return [
             'company_id' => ['required', 'integer', 'exists:companies,id'],

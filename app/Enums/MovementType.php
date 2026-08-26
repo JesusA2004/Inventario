@@ -16,6 +16,7 @@ enum MovementType: string
     case Baja = 'baja';
     case Reactivacion = 'reactivacion';
     case Edicion = 'edicion';
+    case Responsiva = 'responsiva';
 
     public function label(): string
     {
@@ -32,6 +33,7 @@ enum MovementType: string
             self::Baja => 'Baja',
             self::Reactivacion => 'Reactivación',
             self::Edicion => 'Edición',
+            self::Responsiva => 'Responsiva de equipo',
         };
     }
 }

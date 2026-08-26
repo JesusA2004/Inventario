@@ -11,6 +11,7 @@ use App\Models\Branch;
 use App\Models\Department;
 use App\Models\ResponsiblePerson;
 use App\Services\AssetMovementService;
+use App\Services\Responsibilities\AssetResponsibilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -21,7 +22,10 @@ use Inertia\Inertia;
 
 class AssetActionController extends Controller implements HasMiddleware
 {
-    public function __construct(private readonly AssetMovementService $movements) {}
+    public function __construct(
+        private readonly AssetMovementService $movements,
+        private readonly AssetResponsibilityService $responsibilities,
+    ) {}
 
     public static function middleware(): array
     {
@@ -36,6 +40,11 @@ class AssetActionController extends Controller implements HasMiddleware
         $data = $request->validate([
             'current_responsible_id' => ['nullable', 'integer', 'exists:responsible_people,id'],
             'comment' => ['nullable', 'string', 'max:1000'],
+            'delivery_date' => ['nullable', 'date'],
+            'generate_responsibility' => ['boolean'],
+            'grantor_name' => ['nullable', 'string', 'max:255'],
+            'grantor_position' => ['nullable', 'string', 'max:255'],
+            'grantor_email' => ['nullable', 'email', 'max:255'],
         ]);
 
         // El frontend ya filtra la lista de responsables por empresa, pero
@@ -60,6 +69,36 @@ class AssetActionController extends Controller implements HasMiddleware
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Responsable actualizado.']);
+
+        // "Generar responsiva de entrega" está activado por defecto cuando
+        // se asigna un responsable real; el otorgante solo puede
+        // sobreescribirse si el usuario tiene permiso para gestionar
+        // responsivas, para no dejar que cualquiera con permiso de editar
+        // activos cambie quién "otorga" el equipo.
+        $shouldGenerate = ! empty($data['current_responsible_id']) && $request->boolean('generate_responsibility', true);
+
+        if ($shouldGenerate) {
+            $overrides = $request->user()->can('gestionar-responsivas')
+                ? array_filter([
+                    'grantor_name' => $data['grantor_name'] ?? null,
+                    'grantor_position' => $data['grantor_position'] ?? null,
+                    'grantor_email' => $data['grantor_email'] ?? null,
+                ], fn ($value) => filled($value))
+                : [];
+
+            if (! empty($data['delivery_date'])) {
+                $overrides['issued_at'] = $data['delivery_date'];
+            }
+
+            $responsible = ResponsiblePerson::findOrFail((int) $data['current_responsible_id']);
+            $responsibility = $this->responsibilities->createDraft($asset->fresh(), $responsible, $overrides, $request->user());
+
+            Inertia::flash('responsibilityCreated', [
+                'public_id' => $responsibility->public_id,
+                'receiver_name' => $responsibility->receiver_name,
+                'has_email' => filled($responsibility->receiver_email),
+            ]);
+        }
 
         return back();
     }

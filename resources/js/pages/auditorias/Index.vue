@@ -42,7 +42,11 @@ defineOptions({
 const status = ref(props.filters.status ?? 'all');
 
 function applyFilters() {
-    router.get('/auditorias', { status: status.value !== 'all' ? status.value : undefined }, { preserveState: true, replace: true });
+    router.get(
+        '/auditorias',
+        { status: status.value !== 'all' ? status.value : undefined },
+        { preserveState: true, replace: true },
+    );
 }
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -52,7 +56,11 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 };
 
 function formatDate(value: string): string {
-    return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
+    return new Intl.DateTimeFormat('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    }).format(new Date(value));
 }
 </script>
 
@@ -76,7 +84,9 @@ function formatDate(value: string): string {
         </PageHeader>
 
         <Select v-model="status" @update:model-value="applyFilters">
-            <SelectTrigger class="w-full sm:w-48"><SelectValue placeholder="Estatus" /></SelectTrigger>
+            <SelectTrigger class="w-full sm:w-48"
+                ><SelectValue placeholder="Estatus"
+            /></SelectTrigger>
             <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="en_progreso">En progreso</SelectItem>
@@ -111,16 +121,32 @@ function formatDate(value: string): string {
                 >
                     <div class="flex items-start justify-between gap-3">
                         <div>
-                            <p class="font-medium text-foreground">{{ audit.name }}</p>
+                            <p class="font-medium text-foreground">
+                                {{ audit.name }}
+                            </p>
                             <p class="text-sm text-muted-foreground">
-                                {{ audit.company?.name }} · {{ audit.branch?.name }}
-                                <span v-if="audit.department"> · {{ audit.department.name }}</span>
+                                {{ audit.company?.name }} ·
+                                {{ audit.branch?.name }}
+                                <span v-if="audit.department">
+                                    · {{ audit.department.name }}</span
+                                >
                             </p>
                         </div>
-                        <StatusBadge :label="statusLabels[audit.status]?.label ?? audit.status" :color="statusLabels[audit.status]?.color ?? 'gray'" />
+                        <StatusBadge
+                            :label="
+                                statusLabels[audit.status]?.label ??
+                                audit.status
+                            "
+                            :color="statusLabels[audit.status]?.color ?? 'gray'"
+                        />
                     </div>
-                    <div class="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{{ audit.found_count }} / {{ audit.items_count }} encontrados</span>
+                    <div
+                        class="mt-3 flex items-center gap-4 text-sm text-muted-foreground"
+                    >
+                        <span
+                            >{{ audit.found_count }} /
+                            {{ audit.items_count }} encontrados</span
+                        >
                         <span>Inició {{ formatDate(audit.started_at) }}</span>
                     </div>
                 </Link>

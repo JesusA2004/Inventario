@@ -115,7 +115,7 @@ class LabelSizeResolver
      * selection mode) so the size dialog's preview and validation stay in
      * sync with the server without duplicating the numbers by hand.
      *
-     * @return array{presets: array, bounds: array{minWidth: float, maxWidth: float, minHeight: float, maxHeight: float}, maxWidthByColumns: array<int, float>}
+     * @return array{presets: array<string, array<string, mixed>>, bounds: array{minWidth: float, maxWidth: float, minHeight: float, maxHeight: float}, maxWidthByColumns: array<int, float>}
      */
     public static function sharedProps(): array
     {

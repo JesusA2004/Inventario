@@ -13,6 +13,7 @@ const props = defineProps<{
         branch_id?: string;
         department_id?: string;
     };
+    canOverrideGrantor: boolean;
 }>();
 
 defineOptions({
@@ -49,6 +50,10 @@ const form = useForm<AssetFormData>({
     purchase_date: null,
     acquired_at: today,
     last_reviewed_at: null,
+    generate_responsibility: true,
+    grantor_name: '',
+    grantor_position: '',
+    grantor_email: '',
 });
 
 function submit(createAnother: boolean) {
@@ -70,7 +75,12 @@ function submit(createAnother: boolean) {
             description="Registra un dispositivo en el inventario"
         />
 
-        <AssetForm :form="form" :form-options="formOptions" mode="create" />
+        <AssetForm
+            :form="form"
+            :form-options="formOptions"
+            mode="create"
+            :can-override-grantor="canOverrideGrantor"
+        />
     </div>
 
     <div

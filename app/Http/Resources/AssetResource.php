@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Enums\AssetStatus;
 use App\Models\Asset;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -16,7 +15,9 @@ class AssetResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $status = $this->status instanceof AssetStatus ? $this->status : AssetStatus::tryFrom((string) $this->status);
+        // El cast de Eloquent garantiza que $this->status siempre es una
+        // instancia real de AssetStatus.
+        $status = $this->status;
 
         return [
             'id' => $this->id,
@@ -25,7 +26,7 @@ class AssetResource extends JsonResource
             'name' => $this->name,
             'model' => $this->model,
             'serial_number' => $this->serial_number,
-            'status' => $status ? ['value' => $status->value, 'label' => $status->label(), 'color' => $status->color()] : null,
+            'status' => ['value' => $status->value, 'label' => $status->label(), 'color' => $status->color()],
             'in_inventory' => (bool) $this->in_inventory,
             'photo_url' => $this->whenLoaded('latestPhoto', fn () => $this->latestPhoto ? Storage::url($this->latestPhoto->path) : null),
             'company' => $this->whenLoaded('company', fn () => ['id' => $this->company->id, 'name' => $this->company->name, 'code' => $this->company->code]),
@@ -78,7 +79,7 @@ class AssetResource extends JsonResource
             ])),
             'reviews' => $this->whenLoaded('reviews', fn () => $this->reviews->map(fn ($review) => [
                 'id' => $review->id,
-                'reviewed_at' => $review->reviewed_at?->toDateString(),
+                'reviewed_at' => $review->reviewed_at->toDateString(),
                 'physical_status' => $review->physical_status,
                 'location_ok' => (bool) $review->location_ok,
                 'responsible_ok' => (bool) $review->responsible_ok,
@@ -88,7 +89,7 @@ class AssetResource extends JsonResource
             'loans' => $this->whenLoaded('loans', fn () => $this->loans->map(fn ($loan) => [
                 'id' => $loan->id,
                 'status' => ['value' => $loan->status->value, 'label' => $loan->status->label(), 'color' => $loan->status->color()],
-                'loan_date' => $loan->loan_date?->toDateString(),
+                'loan_date' => $loan->loan_date->toDateString(),
                 'expected_return_date' => $loan->expected_return_date?->toDateString(),
                 'actual_return_date' => $loan->actual_return_date?->toDateString(),
                 'assigned_to' => $loan->assignedTo?->full_name,
@@ -96,6 +97,7 @@ class AssetResource extends JsonResource
                 'received_by' => $loan->receivedBy?->full_name,
                 'reason' => $loan->reason,
             ])),
+            'responsibilities' => $this->whenLoaded('responsibilities', fn () => AssetResponsibilityResource::collection($this->responsibilities)->resolve()),
             'parts' => $this->whenLoaded('parts', fn () => $this->parts->map(fn ($part) => [
                 'id' => $part->id,
                 'public_id' => $part->public_id,

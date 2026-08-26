@@ -2,14 +2,19 @@
 
 namespace App\Http\Requests\Catalogs;
 
+use App\Models\Branch;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class BranchRequest extends FormRequest
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
-        $branchId = $this->route('branch')?->id;
+        $routeBranch = $this->route('branch');
+        $branchId = $routeBranch instanceof Branch ? $routeBranch->id : null;
 
         return [
             'company_id' => ['required', 'integer', 'exists:companies,id'],

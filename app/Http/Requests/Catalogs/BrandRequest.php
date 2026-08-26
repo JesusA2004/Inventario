@@ -10,6 +10,9 @@ use Illuminate\Validation\Validator;
 
 class BrandRequest extends FormRequest
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
@@ -25,7 +28,8 @@ class BrandRequest extends FormRequest
                 return;
             }
 
-            $brandId = $this->route('brand')?->id;
+            $routeBrand = $this->route('brand');
+            $brandId = $routeBrand instanceof Brand ? $routeBrand->id : null;
             $slug = Str::slug($this->string('name'));
 
             $exists = Brand::query()

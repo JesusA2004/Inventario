@@ -44,23 +44,46 @@ function submit() {
         <DialogContent class="sm:max-w-sm">
             <DialogHeader>
                 <DialogTitle>Cambiar ubicación</DialogTitle>
-                <DialogDescription>Se guardará en el historial del activo.</DialogDescription>
+                <DialogDescription
+                    >Se guardará en el historial del activo.</DialogDescription
+                >
             </DialogHeader>
 
             <form class="space-y-4" @submit.prevent="submit">
                 <div class="grid gap-2">
                     <Label>Sucursal</Label>
-                    <Combobox v-model="form.branch_id" :options="branches.map((b) => ({ value: b.id, label: b.name }))" />
+                    <Combobox
+                        v-model="form.branch_id"
+                        :options="
+                            branches.map((b) => ({
+                                value: b.id,
+                                label: b.name,
+                            }))
+                        "
+                    />
                     <InputError :message="form.errors.branch_id" />
                 </div>
                 <div class="grid gap-2">
                     <Label>Área (opcional)</Label>
-                    <Combobox v-model="form.department_id" :options="departments.map((d) => ({ value: d.id, label: d.name }))" placeholder="Sin área" />
+                    <Combobox
+                        v-model="form.department_id"
+                        :options="
+                            departments.map((d) => ({
+                                value: d.id,
+                                label: d.name,
+                            }))
+                        "
+                        placeholder="Sin área"
+                    />
                     <InputError :message="form.errors.department_id" />
                 </div>
                 <div class="grid gap-2">
                     <Label for="location-comment">Observación (opcional)</Label>
-                    <Textarea id="location-comment" v-model="form.comment" rows="2" />
+                    <Textarea
+                        id="location-comment"
+                        v-model="form.comment"
+                        rows="2"
+                    />
                     <InputError :message="form.errors.comment" />
                 </div>
                 <DialogFooter>

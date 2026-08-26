@@ -10,7 +10,7 @@ test('each preset resolves to its configured dimensions', function () {
     $dims = $this->resolver->resolve('small', 2);
 
     expect($dims['width'])->toBe(32.0)
-        ->and($dims['height'])->toBe(26.0)
+        ->and($dims['height'])->toBe(34.0)
         ->and($dims['qr'])->toBe(16.0);
 });
 

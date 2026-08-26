@@ -37,5 +37,5 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
     Route::resource('responsables', ResponsiblePersonController::class)
         ->parameters(['responsables' => 'responsable'])
         ->names('responsible-people')
-        ->only(['index', 'store', 'update', 'destroy']);
+        ->only(['index', 'show', 'store', 'update', 'destroy']);
 });

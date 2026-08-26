@@ -47,11 +47,11 @@ class AssetMovementService
         ];
 
         $labels = [
-            'current_responsible_id' => fn ($value) => $value
+            'current_responsible_id' => fn (int|string|null $value) => $value
                 ? ResponsiblePerson::find($value)?->full_name
                 : 'Sin asignar',
-            'branch_id' => fn ($value) => $value ? Branch::find($value)?->name : null,
-            'department_id' => fn ($value) => $value ? Department::find($value)?->name : 'Sin área',
+            'branch_id' => fn (int|string|null $value) => $value ? Branch::find($value)?->name : null,
+            'department_id' => fn (int|string|null $value) => $value ? Department::find($value)?->name : 'Sin área',
             'status' => fn ($value) => $value instanceof AssetStatus ? $value->label() : (string) $value,
         ];
 

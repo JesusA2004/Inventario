@@ -1,6 +1,7 @@
 includes:
     - vendor/larastan/larastan/extension.neon
     - vendor/nesbot/carbon/extension.neon
+    - phpstan-baseline.neon
 
 parameters:
     paths:
@@ -11,3 +12,13 @@ parameters:
         - routes/
 
     level: 7
+
+    # Sin esto, Larastan no reconoce los casts declarados vía el método
+    # moderno `protected function casts(): array` (todos los modelos de esta
+    # app lo usan) y trata cualquier atributo con cast de enum/fecha como
+    # string suelto: eso era la causa raíz de decenas de falsos positivos
+    # ("Cannot call method label() on string", comparaciones de enum
+    # siempre-falsas, etc.) en prácticamente todo el código que toca un
+    # modelo. Ver https://github.com/larastan/larastan — parámetro documentado
+    # de la propia extensión, no una fuente propia.
+    parseModelCastsMethod: true

@@ -43,5 +43,24 @@ class AssetTypesSeeder extends Seeder
         foreach ($types as $type) {
             AssetType::query()->firstOrCreate(['code' => $type['code']], $type);
         }
+
+        // Perfil de responsiva por tipo (título/tipo de documento adaptativo
+        // en el PDF, ver ResponsibilityProfile). Se aplica con un simple
+        // update() -no firstOrCreate()- para que también corrija los tipos
+        // que ya existían en la base antes de esta columna.
+        $profiles = [
+            'LAP' => 'computer', 'EC' => 'computer',
+            'MON' => 'display',
+            'CEL' => 'mobile', 'TEL' => 'mobile', 'TAB' => 'mobile',
+            'ROU' => 'network', 'SW' => 'network', 'AP' => 'network',
+            'DVR' => 'network', 'NVR' => 'network', 'CAM' => 'network', 'UPS' => 'network',
+            'PER' => 'peripheral', 'ACC' => 'peripheral', 'ACCS' => 'peripheral',
+            'IMP' => 'peripheral', 'EV' => 'peripheral', 'EA' => 'peripheral',
+            'EQP' => 'general', 'MOB' => 'general', 'PZA' => 'general', 'EXT' => 'general', 'OTR' => 'general',
+        ];
+
+        foreach ($profiles as $code => $profile) {
+            AssetType::query()->where('code', $code)->update(['responsibility_profile' => $profile]);
+        }
     }
 }

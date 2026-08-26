@@ -46,6 +46,18 @@ class UserFactory extends Factory
 
     /**
      * Indicate that the model has two-factor authentication configured.
+     *
+     * La autenticación de dos factores de Fortify está desactivada en esta
+     * app (ver config/fortify.php: 'features' no incluye
+     * twoFactorAuthentication()), y App\Models\User no usa el trait
+     * TwoFactorAuthenticatable que Fortify requiere para el reto de 2FA. Este
+     * estado de factory queda como no-op (antes ni siquiera tenía un
+     * `return`, lo cual PHPStan reportó correctamente) hasta que 2FA se
+     * habilite de verdad en la app; activarlo aquí sin esa base no haría
+     * nada funcional y sería agregar alcance fuera de esta tarea.
      */
-    public function withTwoFactor(): static {}
+    public function withTwoFactor(): static
+    {
+        return $this;
+    }
 }

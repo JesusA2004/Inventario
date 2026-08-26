@@ -89,13 +89,19 @@ function onClear(event: Event) {
                 <span class="truncate">{{
                     selected ? selected.label : placeholder
                 }}</span>
-                <Loader2 v-if="loading" class="ml-2 size-4 shrink-0 animate-spin opacity-50" />
+                <Loader2
+                    v-if="loading"
+                    class="ml-2 size-4 shrink-0 animate-spin opacity-50"
+                />
                 <X
                     v-else-if="clearable && selected"
                     class="ml-2 size-4 shrink-0 opacity-50 hover:opacity-100"
                     @click="onClear"
                 />
-                <ChevronsUpDown v-else class="ml-2 size-4 shrink-0 opacity-50" />
+                <ChevronsUpDown
+                    v-else
+                    class="ml-2 size-4 shrink-0 opacity-50"
+                />
             </Button>
         </PopoverTrigger>
         <PopoverContent

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Catalogs;
 
+use App\Enums\ResponsibilityProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Catalogs\AssetTypeRequest;
 use App\Models\AssetType;
@@ -34,6 +35,7 @@ class AssetTypeController extends Controller implements HasMiddleware
         return Inertia::render('asset-types/Index', [
             'assetTypes' => $assetTypes,
             'filters' => $request->only('q'),
+            'responsibilityProfileOptions' => ResponsibilityProfile::options(),
         ]);
     }
 

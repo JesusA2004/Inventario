@@ -26,7 +26,11 @@ defineEmits<{
     <Link
         :href="`/activos/${asset.public_id}`"
         class="group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg active:scale-[0.99]"
-        :class="selectable && selected ? 'border-primary ring-1 ring-primary' : 'border-border'"
+        :class="
+            selectable && selected
+                ? 'border-primary ring-1 ring-primary'
+                : 'border-border'
+        "
     >
         <button
             v-if="selectable"
@@ -46,7 +50,10 @@ defineEmits<{
                 loading="lazy"
                 class="size-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
-            <div v-else class="flex size-full flex-col items-center justify-center gap-1.5 text-muted-foreground/60">
+            <div
+                v-else
+                class="flex size-full flex-col items-center justify-center gap-1.5 text-muted-foreground/60"
+            >
                 <ImageOff class="size-8" />
                 <span class="text-[11px]">Sin foto</span>
             </div>
@@ -69,15 +76,24 @@ defineEmits<{
             </div>
 
             <div class="space-y-0.5 text-xs text-muted-foreground">
-                <p class="truncate">{{ asset.company?.name }} · {{ asset.branch?.name }}</p>
-                <p v-if="asset.department" class="truncate">{{ asset.department.name }}</p>
+                <p class="truncate">
+                    {{ asset.company?.name }} · {{ asset.branch?.name }}
+                </p>
+                <p v-if="asset.department" class="truncate">
+                    {{ asset.department.name }}
+                </p>
             </div>
 
             <div class="mt-auto border-t border-border pt-2 text-xs">
-                <p v-if="asset.currentResponsible" class="truncate text-foreground">
+                <p
+                    v-if="asset.currentResponsible"
+                    class="truncate text-foreground"
+                >
                     {{ asset.currentResponsible.full_name }}
                 </p>
-                <p v-else class="text-muted-foreground italic">Sin responsable</p>
+                <p v-else class="text-muted-foreground italic">
+                    Sin responsable
+                </p>
             </div>
         </div>
     </Link>

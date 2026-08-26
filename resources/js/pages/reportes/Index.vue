@@ -56,10 +56,32 @@ type InventoryData = {
 };
 
 type SummaryData = {
-    bajas: { total: number; byReason: { label: string; total: number }[]; byCompany: { name: string; total: number }[] };
-    prestamos: { active: number; returned: number; overdue: number; dueSoon: number };
-    piezas: { total: number; functional: number; damaged: number; review: number; decommissioned: number };
-    auditorias: { total: number; expected: number; found: number; missing: number; differences: number; compliancePercent: number };
+    bajas: {
+        total: number;
+        byReason: { label: string; total: number }[];
+        byCompany: { name: string; total: number }[];
+    };
+    prestamos: {
+        active: number;
+        returned: number;
+        overdue: number;
+        dueSoon: number;
+    };
+    piezas: {
+        total: number;
+        functional: number;
+        damaged: number;
+        review: number;
+        decommissioned: number;
+    };
+    auditorias: {
+        total: number;
+        expected: number;
+        found: number;
+        missing: number;
+        differences: number;
+        compliancePercent: number;
+    };
 };
 
 const props = defineProps<{
@@ -72,7 +94,9 @@ defineOptions({
     layout: { breadcrumbs: [{ title: 'Reportes', href: '/reportes' }] },
 });
 
-const otherReports = computed(() => props.reports.filter((r) => r.key !== 'inventario'));
+const otherReports = computed(() =>
+    props.reports.filter((r) => r.key !== 'inventario'),
+);
 
 const companyFilter = ref('all');
 const from = ref<string | null>(null);
@@ -91,12 +115,16 @@ const inventoryFilters = ref({
 const branchOptions = computed(() =>
     companyFilter.value === 'all'
         ? props.inventoryFilterOptions.branches
-        : props.inventoryFilterOptions.branches.filter((b) => String(b.company_id) === companyFilter.value),
+        : props.inventoryFilterOptions.branches.filter(
+              (b) => String(b.company_id) === companyFilter.value,
+          ),
 );
 
 // Encadenamiento en ambos sentidos entre empresa y sucursal.
 watch(companyFilter, (newCompanyId) => {
-    const branch = props.inventoryFilterOptions.branches.find((b) => String(b.id) === inventoryFilters.value.branch_id);
+    const branch = props.inventoryFilterOptions.branches.find(
+        (b) => String(b.id) === inventoryFilters.value.branch_id,
+    );
 
     if (branch && String(branch.company_id) !== newCompanyId) {
         inventoryFilters.value.branch_id = 'all';
@@ -107,10 +135,12 @@ watch(
     () => inventoryFilters.value.branch_id,
     (newBranchId) => {
         if (newBranchId === 'all') {
-return;
-}
+            return;
+        }
 
-        const branch = props.inventoryFilterOptions.branches.find((b) => String(b.id) === newBranchId);
+        const branch = props.inventoryFilterOptions.branches.find(
+            (b) => String(b.id) === newBranchId,
+        );
 
         if (branch && String(branch.company_id) !== companyFilter.value) {
             companyFilter.value = String(branch.company_id);
@@ -128,23 +158,38 @@ const branchComboOptions = computed(() => [
 ]);
 const departmentComboOptions = computed(() => [
     { value: 'all', label: 'Todas las áreas' },
-    ...props.inventoryFilterOptions.departments.map((d) => ({ value: String(d.id), label: d.name })),
+    ...props.inventoryFilterOptions.departments.map((d) => ({
+        value: String(d.id),
+        label: d.name,
+    })),
 ]);
 const responsibleComboOptions = computed(() => [
     { value: 'all', label: 'Todos los responsables' },
-    ...props.inventoryFilterOptions.responsiblePeople.map((r) => ({ value: String(r.id), label: r.full_name })),
+    ...props.inventoryFilterOptions.responsiblePeople.map((r) => ({
+        value: String(r.id),
+        label: r.full_name,
+    })),
 ]);
 const assetTypeComboOptions = computed(() => [
     { value: 'all', label: 'Todos los tipos' },
-    ...props.inventoryFilterOptions.assetTypes.map((t) => ({ value: String(t.id), label: t.name })),
+    ...props.inventoryFilterOptions.assetTypes.map((t) => ({
+        value: String(t.id),
+        label: t.name,
+    })),
 ]);
 const brandComboOptions = computed(() => [
     { value: 'all', label: 'Todas las marcas' },
-    ...props.inventoryFilterOptions.brands.map((b) => ({ value: String(b.id), label: b.name })),
+    ...props.inventoryFilterOptions.brands.map((b) => ({
+        value: String(b.id),
+        label: b.name,
+    })),
 ]);
 const statusComboOptions = computed(() => [
     { value: 'all', label: 'Todos los estatus' },
-    ...props.inventoryFilterOptions.statuses.map((s) => ({ value: s.value, label: s.label })),
+    ...props.inventoryFilterOptions.statuses.map((s) => ({
+        value: s.value,
+        label: s.label,
+    })),
 ]);
 
 const baseQuery = computed(() => {
@@ -178,7 +223,8 @@ const inventoryQuery = computed(() => {
 });
 
 function exportUrl(key: string, format: 'excel' | 'pdf'): string {
-    const params = key === 'inventario' ? inventoryQuery.value : baseQuery.value;
+    const params =
+        key === 'inventario' ? inventoryQuery.value : baseQuery.value;
     const query = params.toString();
 
     return `/reportes/${key}/${format}${query ? `?${query}` : ''}`;
@@ -203,7 +249,9 @@ function clearInventoryFilters() {
     from.value = null;
     to.value = null;
 
-    for (const key of Object.keys(inventoryFilters.value) as (keyof typeof inventoryFilters.value)[]) {
+    for (const key of Object.keys(
+        inventoryFilters.value,
+    ) as (keyof typeof inventoryFilters.value)[]) {
         inventoryFilters.value[key] = 'all';
     }
 }
@@ -222,7 +270,10 @@ async function loadLiveData() {
     const params = Object.fromEntries(inventoryQuery.value.entries());
 
     try {
-        liveData.value = await getJson<InventoryData>('/reportes/inventario/datos', params);
+        liveData.value = await getJson<InventoryData>(
+            '/reportes/inventario/datos',
+            params,
+        );
     } finally {
         loading.value = false;
     }
@@ -256,38 +307,73 @@ watch(
     { deep: true },
 );
 
-const kpisByReport = computed<Record<string, { label: string; value: number }[]>>(() => ({
+const kpisByReport = computed<
+    Record<string, { label: string; value: number }[]>
+>(() => ({
     bajas: summaryData.value
         ? [
               { label: 'Total', value: summaryData.value.bajas.total },
-              { label: 'Motivos distintos', value: summaryData.value.bajas.byReason.length },
+              {
+                  label: 'Motivos distintos',
+                  value: summaryData.value.bajas.byReason.length,
+              },
           ]
         : [],
     prestamos: summaryData.value
         ? [
               { label: 'Prestados', value: summaryData.value.prestamos.active },
-              { label: 'Devueltos', value: summaryData.value.prestamos.returned },
+              {
+                  label: 'Devueltos',
+                  value: summaryData.value.prestamos.returned,
+              },
               { label: 'Vencidos', value: summaryData.value.prestamos.overdue },
-              { label: 'Por vencer (7 días)', value: summaryData.value.prestamos.dueSoon },
+              {
+                  label: 'Por vencer (7 días)',
+                  value: summaryData.value.prestamos.dueSoon,
+              },
           ]
         : [],
     piezas: summaryData.value
         ? [
               { label: 'Total', value: summaryData.value.piezas.total },
-              { label: 'Funcionales', value: summaryData.value.piezas.functional },
+              {
+                  label: 'Funcionales',
+                  value: summaryData.value.piezas.functional,
+              },
               { label: 'Dañadas', value: summaryData.value.piezas.damaged },
               { label: 'En revisión', value: summaryData.value.piezas.review },
-              { label: 'De baja', value: summaryData.value.piezas.decommissioned },
+              {
+                  label: 'De baja',
+                  value: summaryData.value.piezas.decommissioned,
+              },
           ]
         : [],
     auditorias: summaryData.value
         ? [
-              { label: 'Auditorías', value: summaryData.value.auditorias.total },
-              { label: 'Esperados', value: summaryData.value.auditorias.expected },
-              { label: 'Encontrados', value: summaryData.value.auditorias.found },
-              { label: 'Faltantes', value: summaryData.value.auditorias.missing },
-              { label: 'Con diferencias', value: summaryData.value.auditorias.differences },
-              { label: '% cumplimiento', value: summaryData.value.auditorias.compliancePercent },
+              {
+                  label: 'Auditorías',
+                  value: summaryData.value.auditorias.total,
+              },
+              {
+                  label: 'Esperados',
+                  value: summaryData.value.auditorias.expected,
+              },
+              {
+                  label: 'Encontrados',
+                  value: summaryData.value.auditorias.found,
+              },
+              {
+                  label: 'Faltantes',
+                  value: summaryData.value.auditorias.missing,
+              },
+              {
+                  label: 'Con diferencias',
+                  value: summaryData.value.auditorias.differences,
+              },
+              {
+                  label: '% cumplimiento',
+                  value: summaryData.value.auditorias.compliancePercent,
+              },
           ]
         : [],
 }));
@@ -317,7 +403,9 @@ const statusColorMap: Record<string, string> = {
             help-text="Cada reporte se exporta con los mismos filtros que ves en pantalla. El PDF incluye KPIs y gráficas; el Excel trae una hoja 'Datos' y otra 'Resumen' con esos mismos indicadores."
         />
 
-        <section class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:p-6">
+        <section
+            class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:p-6"
+        >
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
                     <span class="relative flex size-2.5">
@@ -325,9 +413,13 @@ const statusColorMap: Record<string, string> = {
                             class="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75"
                             :class="{ 'opacity-0': !loading }"
                         />
-                        <span class="relative inline-flex size-2.5 rounded-full bg-primary" />
+                        <span
+                            class="relative inline-flex size-2.5 rounded-full bg-primary"
+                        />
                     </span>
-                    <h2 class="text-base font-semibold text-foreground">Inventario general · en tiempo real</h2>
+                    <h2 class="text-base font-semibold text-foreground">
+                        Inventario general · en tiempo real
+                    </h2>
                 </div>
                 <div class="flex gap-2">
                     <Button
@@ -357,36 +449,66 @@ const statusColorMap: Record<string, string> = {
             <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div class="grid gap-2">
                     <Label class="text-xs">Empresa</Label>
-                    <Combobox v-model="companyFilter" :options="companyComboOptions" search-placeholder="Buscar empresa..." />
+                    <Combobox
+                        v-model="companyFilter"
+                        :options="companyComboOptions"
+                        search-placeholder="Buscar empresa..."
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Sucursal</Label>
-                    <Combobox v-model="inventoryFilters.branch_id" :options="branchComboOptions" search-placeholder="Buscar sucursal..." />
+                    <Combobox
+                        v-model="inventoryFilters.branch_id"
+                        :options="branchComboOptions"
+                        search-placeholder="Buscar sucursal..."
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Área</Label>
-                    <Combobox v-model="inventoryFilters.department_id" :options="departmentComboOptions" search-placeholder="Buscar área..." />
+                    <Combobox
+                        v-model="inventoryFilters.department_id"
+                        :options="departmentComboOptions"
+                        search-placeholder="Buscar área..."
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Responsable</Label>
-                    <Combobox v-model="inventoryFilters.responsible_id" :options="responsibleComboOptions" search-placeholder="Buscar responsable..." />
+                    <Combobox
+                        v-model="inventoryFilters.responsible_id"
+                        :options="responsibleComboOptions"
+                        search-placeholder="Buscar responsable..."
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Tipo de activo</Label>
-                    <Combobox v-model="inventoryFilters.asset_type_id" :options="assetTypeComboOptions" search-placeholder="Buscar tipo..." />
+                    <Combobox
+                        v-model="inventoryFilters.asset_type_id"
+                        :options="assetTypeComboOptions"
+                        search-placeholder="Buscar tipo..."
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Marca</Label>
-                    <Combobox v-model="inventoryFilters.brand_id" :options="brandComboOptions" search-placeholder="Buscar marca..." />
+                    <Combobox
+                        v-model="inventoryFilters.brand_id"
+                        :options="brandComboOptions"
+                        search-placeholder="Buscar marca..."
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Estatus</Label>
-                    <Combobox v-model="inventoryFilters.status" :options="statusComboOptions" search-placeholder="Buscar estatus..." />
+                    <Combobox
+                        v-model="inventoryFilters.status"
+                        :options="statusComboOptions"
+                        search-placeholder="Buscar estatus..."
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Sigue en inventario</Label>
                     <Select v-model="inventoryFilters.in_inventory">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger class="w-full"
+                            ><SelectValue
+                        /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todos</SelectItem>
                             <SelectItem value="1">Sí, en inventario</SelectItem>
@@ -396,11 +518,19 @@ const statusColorMap: Record<string, string> = {
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Desde</Label>
-                    <DatePicker v-model="from" from-today placeholder="Sin límite" />
+                    <DatePicker
+                        v-model="from"
+                        from-today
+                        placeholder="Sin límite"
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label class="text-xs">Hasta</Label>
-                    <DatePicker v-model="to" from-today placeholder="Sin límite" />
+                    <DatePicker
+                        v-model="to"
+                        from-today
+                        placeholder="Sin límite"
+                    />
                 </div>
             </div>
 
@@ -409,50 +539,124 @@ const statusColorMap: Record<string, string> = {
                 :class="{ 'opacity-60': loading }"
             >
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <StatCard title="Activos que coinciden" :value="liveData?.total ?? 0" :icon="FileBarChart" />
-                    <StatCard title="En inventario" :value="liveData?.inInventory ?? 0" tone="positive" :icon="RefreshCw" />
-                    <StatCard title="Dados de baja" :value="(liveData?.total ?? 0) - (liveData?.inInventory ?? 0)" tone="warning" :icon="RefreshCw" />
+                    <StatCard
+                        title="Activos que coinciden"
+                        :value="liveData?.total ?? 0"
+                        :icon="FileBarChart"
+                    />
+                    <StatCard
+                        title="En inventario"
+                        :value="liveData?.inInventory ?? 0"
+                        tone="positive"
+                        :icon="RefreshCw"
+                    />
+                    <StatCard
+                        title="Dados de baja"
+                        :value="
+                            (liveData?.total ?? 0) -
+                            (liveData?.inInventory ?? 0)
+                        "
+                        tone="warning"
+                        :icon="RefreshCw"
+                    />
                 </div>
 
                 <div class="grid gap-4 lg:grid-cols-3">
                     <Card>
-                        <CardHeader><CardTitle class="text-sm">Por estatus</CardTitle></CardHeader>
+                        <CardHeader
+                            ><CardTitle class="text-sm"
+                                >Por estatus</CardTitle
+                            ></CardHeader
+                        >
                         <CardContent>
                             <DonutChart
-                                :data="(liveData?.byStatus ?? []).map((s) => ({ label: s.label, value: s.total, colorVar: statusColorMap[s.color] ?? '--chart-3' }))"
+                                :data="
+                                    (liveData?.byStatus ?? []).map((s) => ({
+                                        label: s.label,
+                                        value: s.total,
+                                        colorVar:
+                                            statusColorMap[s.color] ??
+                                            '--chart-3',
+                                    }))
+                                "
                             />
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader><CardTitle class="text-sm">Por sucursal</CardTitle></CardHeader>
+                        <CardHeader
+                            ><CardTitle class="text-sm"
+                                >Por sucursal</CardTitle
+                            ></CardHeader
+                        >
                         <CardContent>
-                            <HorizontalBarList :data="(liveData?.byBranch ?? []).map((b) => ({ label: b.name, value: b.total }))" color-var="--chart-2" />
+                            <HorizontalBarList
+                                :data="
+                                    (liveData?.byBranch ?? []).map((b) => ({
+                                        label: b.name,
+                                        value: b.total,
+                                    }))
+                                "
+                                color-var="--chart-2"
+                            />
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader><CardTitle class="text-sm">Por tipo de activo</CardTitle></CardHeader>
+                        <CardHeader
+                            ><CardTitle class="text-sm"
+                                >Por tipo de activo</CardTitle
+                            ></CardHeader
+                        >
                         <CardContent>
-                            <HorizontalBarList :data="(liveData?.byType ?? []).map((t) => ({ label: t.name, value: t.total }))" color-var="--chart-3" />
+                            <HorizontalBarList
+                                :data="
+                                    (liveData?.byType ?? []).map((t) => ({
+                                        label: t.name,
+                                        value: t.total,
+                                    }))
+                                "
+                                color-var="--chart-3"
+                            />
                         </CardContent>
                     </Card>
                 </div>
 
                 <div class="overflow-x-auto rounded-xl border border-border">
                     <table class="w-full text-sm">
-                        <thead class="bg-muted/50 text-xs text-muted-foreground">
+                        <thead
+                            class="bg-muted/50 text-xs text-muted-foreground"
+                        >
                             <tr>
-                                <th class="px-3 py-2 text-left font-medium">Clave</th>
-                                <th class="px-3 py-2 text-left font-medium">Dispositivo</th>
-                                <th class="px-3 py-2 text-left font-medium">Empresa</th>
-                                <th class="px-3 py-2 text-left font-medium">Sucursal</th>
-                                <th class="px-3 py-2 text-left font-medium">Responsable</th>
-                                <th class="px-3 py-2 text-left font-medium">Estatus</th>
+                                <th class="px-3 py-2 text-left font-medium">
+                                    Clave
+                                </th>
+                                <th class="px-3 py-2 text-left font-medium">
+                                    Dispositivo
+                                </th>
+                                <th class="px-3 py-2 text-left font-medium">
+                                    Empresa
+                                </th>
+                                <th class="px-3 py-2 text-left font-medium">
+                                    Sucursal
+                                </th>
+                                <th class="px-3 py-2 text-left font-medium">
+                                    Responsable
+                                </th>
+                                <th class="px-3 py-2 text-left font-medium">
+                                    Estatus
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-if="(liveData?.rows.length ?? 0) === 0">
-                                <td colspan="6" class="px-3 py-6 text-center text-muted-foreground">
-                                    {{ loading ? 'Cargando...' : 'Sin activos que coincidan con estos filtros.' }}
+                                <td
+                                    colspan="6"
+                                    class="px-3 py-6 text-center text-muted-foreground"
+                                >
+                                    {{
+                                        loading
+                                            ? 'Cargando...'
+                                            : 'Sin activos que coincidan con estos filtros.'
+                                    }}
                                 </td>
                             </tr>
                             <tr
@@ -460,20 +664,40 @@ const statusColorMap: Record<string, string> = {
                                 :key="row.id"
                                 class="border-t border-border transition-colors hover:bg-muted/40"
                             >
-                                <td class="px-3 py-2 font-mono text-xs">{{ row.internal_code }}</td>
-                                <td class="px-3 py-2 font-medium text-foreground">{{ row.name }}</td>
-                                <td class="px-3 py-2 text-muted-foreground">{{ row.company ?? '—' }}</td>
-                                <td class="px-3 py-2 text-muted-foreground">{{ row.branch ?? '—' }}</td>
-                                <td class="px-3 py-2 text-muted-foreground">{{ row.responsible ?? '—' }}</td>
+                                <td class="px-3 py-2 font-mono text-xs">
+                                    {{ row.internal_code }}
+                                </td>
+                                <td
+                                    class="px-3 py-2 font-medium text-foreground"
+                                >
+                                    {{ row.name }}
+                                </td>
+                                <td class="px-3 py-2 text-muted-foreground">
+                                    {{ row.company ?? '—' }}
+                                </td>
+                                <td class="px-3 py-2 text-muted-foreground">
+                                    {{ row.branch ?? '—' }}
+                                </td>
+                                <td class="px-3 py-2 text-muted-foreground">
+                                    {{ row.responsible ?? '—' }}
+                                </td>
                                 <td class="px-3 py-2">
-                                    <StatusBadge :label="row.status.label" :color="row.status.color" />
+                                    <StatusBadge
+                                        :label="row.status.label"
+                                        :color="row.status.color"
+                                    />
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <p v-if="liveData && liveData.total > liveData.rows.length" class="text-xs text-muted-foreground">
-                    Mostrando {{ liveData.rows.length }} de {{ liveData.total }} activos. Exporta a Excel o PDF para ver el listado completo.
+                <p
+                    v-if="liveData && liveData.total > liveData.rows.length"
+                    class="text-xs text-muted-foreground"
+                >
+                    Mostrando {{ liveData.rows.length }} de
+                    {{ liveData.total }} activos. Exporta a Excel o PDF para ver
+                    el listado completo.
                 </p>
             </div>
         </section>
@@ -487,21 +711,40 @@ const statusColorMap: Record<string, string> = {
                     </CardTitle>
                 </CardHeader>
                 <CardContent class="space-y-4">
-                    <p class="text-sm text-muted-foreground">{{ descriptions[report.key] }}</p>
-                    <dl v-if="kpisByReport[report.key]?.length" class="grid grid-cols-2 gap-2 rounded-lg border border-border bg-muted/30 p-3 sm:grid-cols-3">
-                        <div v-for="kpi in kpisByReport[report.key]" :key="kpi.label">
-                            <dt class="text-[11px] text-muted-foreground">{{ kpi.label }}</dt>
-                            <dd class="text-lg font-semibold text-foreground">{{ kpi.value }}</dd>
+                    <p class="text-sm text-muted-foreground">
+                        {{ descriptions[report.key] }}
+                    </p>
+                    <dl
+                        v-if="kpisByReport[report.key]?.length"
+                        class="grid grid-cols-2 gap-2 rounded-lg border border-border bg-muted/30 p-3 sm:grid-cols-3"
+                    >
+                        <div
+                            v-for="kpi in kpisByReport[report.key]"
+                            :key="kpi.label"
+                        >
+                            <dt class="text-[11px] text-muted-foreground">
+                                {{ kpi.label }}
+                            </dt>
+                            <dd class="text-lg font-semibold text-foreground">
+                                {{ kpi.value }}
+                            </dd>
                         </div>
                     </dl>
                     <div class="flex gap-2">
-                        <a :href="exportUrl(report.key, 'excel')" class="flex-1">
+                        <a
+                            :href="exportUrl(report.key, 'excel')"
+                            class="flex-1"
+                        >
                             <Button variant="outline" class="w-full">
                                 <Download class="mr-1 size-4" />
                                 Excel
                             </Button>
                         </a>
-                        <a :href="exportUrl(report.key, 'pdf')" target="_blank" class="flex-1">
+                        <a
+                            :href="exportUrl(report.key, 'pdf')"
+                            target="_blank"
+                            class="flex-1"
+                        >
                             <Button class="w-full">
                                 <FileText class="mr-1 size-4" />
                                 PDF

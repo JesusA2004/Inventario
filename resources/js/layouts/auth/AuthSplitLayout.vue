@@ -52,7 +52,7 @@ const highlights = [
                 class="relative z-20 flex items-center gap-3 text-lg font-semibold text-white"
             >
                 <span
-                    class="flex size-9 items-center justify-center rounded-lg bg-sidebar-primary shadow-lg shadow-sidebar-primary/30 ring-1 ring-white/10"
+                    class="flex size-9 items-center justify-center rounded-lg bg-sidebar-primary shadow-lg ring-1 shadow-sidebar-primary/30 ring-white/10"
                 >
                     <AppLogoIcon
                         class="size-5 fill-current text-sidebar-primary-foreground"

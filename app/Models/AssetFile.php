@@ -41,11 +41,17 @@ class AssetFile extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Asset, $this>
+     */
     public function asset(): BelongsTo
     {
         return $this->belongsTo(Asset::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
@@ -55,6 +61,8 @@ class AssetFile extends Model
      * Photos live on the public disk (needed for thumbnails) and are served
      * directly. Facturas/documentos live on the private disk and can only be
      * reached through the authenticated download route.
+     *
+     * @return Attribute<string, never>
      */
     protected function url(): Attribute
     {

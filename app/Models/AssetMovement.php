@@ -25,11 +25,17 @@ class AssetMovement extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Asset, $this>
+     */
     public function asset(): BelongsTo
     {
         return $this->belongsTo(Asset::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

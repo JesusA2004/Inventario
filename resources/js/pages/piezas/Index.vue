@@ -50,7 +50,11 @@ type Part = {
     company: { id: number; name: string } | null;
     branch: { id: number; name: string } | null;
     brand: { id: number; name: string } | null;
-    relatedAsset: { id: number; public_id: string; internal_code: string } | null;
+    relatedAsset: {
+        id: number;
+        public_id: string;
+        internal_code: string;
+    } | null;
 };
 
 const props = defineProps<{
@@ -63,7 +67,9 @@ const props = defineProps<{
 }>();
 
 defineOptions({
-    layout: { breadcrumbs: [{ title: 'Piezas y refacciones', href: '/piezas' }] },
+    layout: {
+        breadcrumbs: [{ title: 'Piezas y refacciones', href: '/piezas' }],
+    },
 });
 
 const search = ref(props.filters.q ?? '');
@@ -72,7 +78,10 @@ const statusFilter = ref(props.filters.status ?? 'all');
 
 const companyComboOptions = computed(() => [
     { value: 'all', label: 'Todas las empresas' },
-    ...props.filterOptions.companies.map((c) => ({ value: String(c.id), label: c.name })),
+    ...props.filterOptions.companies.map((c) => ({
+        value: String(c.id),
+        label: c.name,
+    })),
 ]);
 
 function applyFilters() {
@@ -80,8 +89,10 @@ function applyFilters() {
         '/piezas',
         {
             q: search.value || undefined,
-            company_id: companyFilter.value !== 'all' ? companyFilter.value : undefined,
-            status: statusFilter.value !== 'all' ? statusFilter.value : undefined,
+            company_id:
+                companyFilter.value !== 'all' ? companyFilter.value : undefined,
+            status:
+                statusFilter.value !== 'all' ? statusFilter.value : undefined,
         },
         { preserveState: true, replace: true },
     );
@@ -100,7 +111,9 @@ function clearFilters() {
 }
 
 const activeFiltersCount = computed(
-    () => [companyFilter.value, statusFilter.value].filter((v) => v !== 'all').length,
+    () =>
+        [companyFilter.value, statusFilter.value].filter((v) => v !== 'all')
+            .length,
 );
 
 const decommissionPart = ref<Part | null>(null);
@@ -108,8 +121,8 @@ const decommissionForm = useForm({ reason: '', notes: '' });
 
 function submitDecommission() {
     if (!decommissionPart.value) {
-return;
-}
+        return;
+    }
 
     decommissionForm.post(`/piezas/${decommissionPart.value.public_id}/baja`, {
         preserveScroll: true,
@@ -153,10 +166,17 @@ return;
                 @update:model-value="applyFilters"
             />
             <Select v-model="statusFilter" @update:model-value="applyFilters">
-                <SelectTrigger class="w-full lg:w-40"><SelectValue placeholder="Estatus" /></SelectTrigger>
+                <SelectTrigger class="w-full lg:w-40"
+                    ><SelectValue placeholder="Estatus"
+                /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Todos los estatus</SelectItem>
-                    <SelectItem v-for="s in filterOptions.statuses" :key="s.value" :value="s.value">{{ s.label }}</SelectItem>
+                    <SelectItem
+                        v-for="s in filterOptions.statuses"
+                        :key="s.value"
+                        :value="s.value"
+                        >{{ s.label }}</SelectItem
+                    >
                 </SelectContent>
             </Select>
         </FilterBar>
@@ -179,22 +199,44 @@ return;
 
         <template v-else>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div v-for="part in parts.data" :key="part.id" class="rounded-xl border border-border bg-card p-4">
+                <div
+                    v-for="part in parts.data"
+                    :key="part.id"
+                    class="rounded-xl border border-border bg-card p-4"
+                >
                     <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <p class="truncate font-medium text-foreground">{{ part.name }}</p>
-                            <p class="font-mono text-xs text-muted-foreground">{{ part.internal_code }}</p>
+                            <p class="truncate font-medium text-foreground">
+                                {{ part.name }}
+                            </p>
+                            <p class="font-mono text-xs text-muted-foreground">
+                                {{ part.internal_code }}
+                            </p>
                         </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger as-child>
-                                <Button variant="ghost" size="icon" class="size-8 shrink-0"><MoreHorizontal class="size-4" /></Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="size-8 shrink-0"
+                                    ><MoreHorizontal class="size-4"
+                                /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem as-child>
-                                    <Link :href="`/piezas/${part.public_id}/editar`">Editar</Link>
+                                    <Link
+                                        :href="`/piezas/${part.public_id}/editar`"
+                                        >Editar</Link
+                                    >
                                 </DropdownMenuItem>
-                                <DropdownMenuItem v-if="part.needs_label" as-child>
-                                    <a :href="`/piezas/${part.public_id}/qr/descargar`">Descargar QR</a>
+                                <DropdownMenuItem
+                                    v-if="part.needs_label"
+                                    as-child
+                                >
+                                    <a
+                                        :href="`/piezas/${part.public_id}/qr/descargar`"
+                                        >Descargar QR</a
+                                    >
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     v-if="part.in_inventory"
@@ -208,18 +250,35 @@ return;
                     </div>
 
                     <div class="mt-3 flex flex-wrap items-center gap-1.5">
-                        <StatusBadge :label="part.status.label" :color="part.status.color" />
-                        <Badge v-if="part.assembled" variant="outline">Ensamblada</Badge>
-                        <Badge v-if="!part.in_inventory" variant="secondary">Fuera de inventario</Badge>
-                        <Badge v-if="part.needs_label" variant="outline"><QrCode class="mr-1 size-3" />QR</Badge>
+                        <StatusBadge
+                            :label="part.status.label"
+                            :color="part.status.color"
+                        />
+                        <Badge v-if="part.assembled" variant="outline"
+                            >Ensamblada</Badge
+                        >
+                        <Badge v-if="!part.in_inventory" variant="secondary"
+                            >Fuera de inventario</Badge
+                        >
+                        <Badge v-if="part.needs_label" variant="outline"
+                            ><QrCode class="mr-1 size-3" />QR</Badge
+                        >
                     </div>
 
                     <div class="mt-3 space-y-1 text-sm text-muted-foreground">
-                        <p v-if="part.company">{{ part.company.name }} <span v-if="part.branch"> · {{ part.branch.name }}</span></p>
+                        <p v-if="part.company">
+                            {{ part.company.name }}
+                            <span v-if="part.branch">
+                                · {{ part.branch.name }}</span
+                            >
+                        </p>
                         <p v-if="part.brand">{{ part.brand.name }}</p>
                         <p v-if="part.relatedAsset?.public_id">
                             Vinculada a
-                            <Link :href="`/activos/${part.relatedAsset.public_id}`" class="font-mono hover:underline">
+                            <Link
+                                :href="`/activos/${part.relatedAsset.public_id}`"
+                                class="font-mono hover:underline"
+                            >
                                 {{ part.relatedAsset.internal_code }}
                             </Link>
                         </p>
@@ -229,13 +288,18 @@ return;
             </div>
 
             <div class="flex items-center justify-between">
-                <p class="text-sm text-muted-foreground">{{ parts.total }} piezas</p>
+                <p class="text-sm text-muted-foreground">
+                    {{ parts.total }} piezas
+                </p>
                 <Pager :links="parts.links" />
             </div>
         </template>
     </div>
 
-    <Dialog :open="!!decommissionPart" @update:open="(value) => !value && (decommissionPart = null)">
+    <Dialog
+        :open="!!decommissionPart"
+        @update:open="(value) => !value && (decommissionPart = null)"
+    >
         <DialogContent class="sm:max-w-sm">
             <DialogHeader>
                 <DialogTitle>Dar de baja esta pieza</DialogTitle>
@@ -243,17 +307,35 @@ return;
             <form class="space-y-4" @submit.prevent="submitDecommission">
                 <div class="grid gap-2">
                     <Label for="part-reason">Motivo</Label>
-                    <Textarea id="part-reason" v-model="decommissionForm.reason" rows="2" required />
+                    <Textarea
+                        id="part-reason"
+                        v-model="decommissionForm.reason"
+                        rows="2"
+                        required
+                    />
                     <InputError :message="decommissionForm.errors.reason" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="part-decommission-notes">Observaciones (opcional)</Label>
-                    <Textarea id="part-decommission-notes" v-model="decommissionForm.notes" rows="2" />
+                    <Label for="part-decommission-notes"
+                        >Observaciones (opcional)</Label
+                    >
+                    <Textarea
+                        id="part-decommission-notes"
+                        v-model="decommissionForm.notes"
+                        rows="2"
+                    />
                     <InputError :message="decommissionForm.errors.notes" />
                 </div>
                 <DialogFooter>
-                    <Button type="submit" variant="destructive" :disabled="decommissionForm.processing">
-                        <Spinner v-if="decommissionForm.processing" class="mr-1" />
+                    <Button
+                        type="submit"
+                        variant="destructive"
+                        :disabled="decommissionForm.processing"
+                    >
+                        <Spinner
+                            v-if="decommissionForm.processing"
+                            class="mr-1"
+                        />
                         Dar de baja
                     </Button>
                 </DialogFooter>

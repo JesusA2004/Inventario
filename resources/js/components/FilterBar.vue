@@ -70,7 +70,10 @@ function clear() {
             <div class="flex items-center gap-2 lg:hidden">
                 <Sheet v-model:open="sheetOpen">
                     <SheetTrigger as-child>
-                        <Button variant="outline" class="flex-1 gap-2 sm:flex-none">
+                        <Button
+                            variant="outline"
+                            class="flex-1 gap-2 sm:flex-none"
+                        >
                             <SlidersHorizontal class="size-4" />
                             Filtros
                             <span
@@ -91,10 +94,14 @@ function clear() {
                         <div class="flex flex-col gap-4 px-4 pb-4">
                             <slot />
                         </div>
-                        <div class="flex flex-col gap-2 border-t px-4 pt-4 pb-2">
+                        <div
+                            class="flex flex-col gap-2 border-t px-4 pt-4 pb-2"
+                        >
                             <slot name="actions" />
                             <Button
-                                v-if="props.activeFiltersCount > 0 || props.search"
+                                v-if="
+                                    props.activeFiltersCount > 0 || props.search
+                                "
                                 variant="outline"
                                 @click="clear"
                             >

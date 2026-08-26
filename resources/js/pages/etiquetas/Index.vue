@@ -16,7 +16,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import type { LabelColumns, LabelSizeKey, LabelSizesConfig } from '@/lib/labelSizes';
+import type {
+    LabelColumns,
+    LabelSizeKey,
+    LabelSizesConfig,
+} from '@/lib/labelSizes';
 import type { AssetListItem, Paginated } from '@/types/assets';
 
 type FilterOptions = {
@@ -46,8 +50,10 @@ function applyFilters() {
         '/etiquetas',
         {
             q: search.value || undefined,
-            company_id: companyFilter.value !== 'all' ? companyFilter.value : undefined,
-            branch_id: branchFilter.value !== 'all' ? branchFilter.value : undefined,
+            company_id:
+                companyFilter.value !== 'all' ? companyFilter.value : undefined,
+            branch_id:
+                branchFilter.value !== 'all' ? branchFilter.value : undefined,
             recent: recentOnly.value ? '1' : undefined,
         },
         { preserveState: true, replace: true },
@@ -65,7 +71,10 @@ function toggleRecent() {
 }
 
 const activeFiltersCount = computed(
-    () => (companyFilter.value !== 'all' ? 1 : 0) + (branchFilter.value !== 'all' ? 1 : 0) + (recentOnly.value ? 1 : 0),
+    () =>
+        (companyFilter.value !== 'all' ? 1 : 0) +
+        (branchFilter.value !== 'all' ? 1 : 0) +
+        (recentOnly.value ? 1 : 0),
 );
 
 function clearFilters() {
@@ -97,16 +106,25 @@ function clearSelection() {
     selected.value = new Set();
 }
 
-const allOnPageSelected = computed(() => props.assets.data.length > 0 && props.assets.data.every((a) => selected.value.has(a.id)));
+const allOnPageSelected = computed(
+    () =>
+        props.assets.data.length > 0 &&
+        props.assets.data.every((a) => selected.value.has(a.id)),
+);
 
 const sizeDialogOpen = ref(false);
 
-const firstSelectedAsset = computed(() => props.assets.data.find((asset) => selected.value.has(asset.id)) ?? null);
+const firstSelectedAsset = computed(
+    () =>
+        props.assets.data.find((asset) => selected.value.has(asset.id)) ?? null,
+);
 
 const previewAsset = computed(() =>
     firstSelectedAsset.value
         ? {
-              type_name: (firstSelectedAsset.value.assetType?.name ?? '').toUpperCase(),
+              type_name: (
+                  firstSelectedAsset.value.assetType?.name ?? ''
+              ).toUpperCase(),
               name: firstSelectedAsset.value.name,
               internal_code: firstSelectedAsset.value.internal_code,
               serial_number: firstSelectedAsset.value.serial_number,
@@ -116,7 +134,12 @@ const previewAsset = computed(() =>
         : null,
 );
 
-function printSelected(payload: { size: LabelSizeKey; columns: LabelColumns; widthMm: number; heightMm: number }) {
+function printSelected(payload: {
+    size: LabelSizeKey;
+    columns: LabelColumns;
+    widthMm: number;
+    heightMm: number;
+}) {
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/etiquetas/pdf';
@@ -125,7 +148,10 @@ function printSelected(payload: { size: LabelSizeKey; columns: LabelColumns; wid
     const csrf = document.createElement('input');
     csrf.type = 'hidden';
     csrf.name = '_token';
-    csrf.value = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+    csrf.value =
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? '';
     form.appendChild(csrf);
 
     const fields: Record<string, string> = {
@@ -167,7 +193,10 @@ function printSelected(payload: { size: LabelSizeKey; columns: LabelColumns; wid
             help-text="Selecciona uno o varios activos y elige el tamaño de etiqueta antes de generar el PDF: pequeño para accesorios, grande para equipo voluminoso. El QR es permanente aunque edites los datos del activo."
         >
             <template #actions>
-                <Button :disabled="selected.size === 0" @click="sizeDialogOpen = true">
+                <Button
+                    :disabled="selected.size === 0"
+                    @click="sizeDialogOpen = true"
+                >
                     <Download class="mr-1 size-4" />
                     Generar etiquetas ({{ selected.size }})
                 </Button>
@@ -182,27 +211,60 @@ function printSelected(payload: { size: LabelSizeKey; columns: LabelColumns; wid
             @clear="clearFilters"
         >
             <Select v-model="companyFilter" @update:model-value="applyFilters">
-                <SelectTrigger class="w-full lg:w-44"><SelectValue placeholder="Empresa" /></SelectTrigger>
+                <SelectTrigger class="w-full lg:w-44"
+                    ><SelectValue placeholder="Empresa"
+                /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Todas las empresas</SelectItem>
-                    <SelectItem v-for="c in filterOptions.companies" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
+                    <SelectItem
+                        v-for="c in filterOptions.companies"
+                        :key="c.id"
+                        :value="String(c.id)"
+                        >{{ c.name }}</SelectItem
+                    >
                 </SelectContent>
             </Select>
             <Select v-model="branchFilter" @update:model-value="applyFilters">
-                <SelectTrigger class="w-full lg:w-44"><SelectValue placeholder="Sucursal" /></SelectTrigger>
+                <SelectTrigger class="w-full lg:w-44"
+                    ><SelectValue placeholder="Sucursal"
+                /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Todas las sucursales</SelectItem>
-                    <SelectItem v-for="b in filterOptions.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</SelectItem>
+                    <SelectItem
+                        v-for="b in filterOptions.branches"
+                        :key="b.id"
+                        :value="String(b.id)"
+                        >{{ b.name }}</SelectItem
+                    >
                 </SelectContent>
             </Select>
-            <Button :variant="recentOnly ? 'default' : 'outline'" @click="toggleRecent">Recién creados</Button>
+            <Button
+                :variant="recentOnly ? 'default' : 'outline'"
+                @click="toggleRecent"
+                >Recién creados</Button
+            >
 
             <template #actions>
-                <Button variant="ghost" size="sm" @click="allOnPageSelected ? clearSelection() : selectAllOnPage()">
-                    <component :is="allOnPageSelected ? CheckSquare : Square" class="mr-1 size-4" />
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    @click="
+                        allOnPageSelected ? clearSelection() : selectAllOnPage()
+                    "
+                >
+                    <component
+                        :is="allOnPageSelected ? CheckSquare : Square"
+                        class="mr-1 size-4"
+                    />
                     Seleccionar página
                 </Button>
-                <Button variant="ghost" size="sm" :disabled="selected.size === 0" @click="clearSelection">Limpiar selección</Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    :disabled="selected.size === 0"
+                    @click="clearSelection"
+                    >Limpiar selección</Button
+                >
             </template>
         </FilterBar>
 
@@ -227,22 +289,38 @@ function printSelected(payload: { size: LabelSizeKey; columns: LabelColumns; wid
                     v-for="asset in assets.data"
                     :key="asset.id"
                     class="flex cursor-pointer flex-col gap-2 rounded-xl border bg-card p-3 transition-colors"
-                    :class="selected.has(asset.id) ? 'border-primary ring-1 ring-primary' : 'border-border'"
+                    :class="
+                        selected.has(asset.id)
+                            ? 'border-primary ring-1 ring-primary'
+                            : 'border-border'
+                    "
                 >
                     <div class="flex items-start justify-between gap-2">
-                        <Checkbox :model-value="selected.has(asset.id)" @update:model-value="() => toggle(asset.id)" />
+                        <Checkbox
+                            :model-value="selected.has(asset.id)"
+                            @update:model-value="() => toggle(asset.id)"
+                        />
                         <QrCode class="size-4 text-muted-foreground" />
                     </div>
                     <div class="min-w-0">
-                        <p class="truncate text-sm font-medium text-foreground">{{ asset.name }}</p>
-                        <p class="font-mono text-xs text-muted-foreground">{{ asset.internal_code }}</p>
-                        <p class="truncate text-xs text-muted-foreground">{{ asset.company?.name }}</p>
+                        <p class="truncate text-sm font-medium text-foreground">
+                            {{ asset.name }}
+                        </p>
+                        <p class="font-mono text-xs text-muted-foreground">
+                            {{ asset.internal_code }}
+                        </p>
+                        <p class="truncate text-xs text-muted-foreground">
+                            {{ asset.company?.name }}
+                        </p>
                     </div>
                 </label>
             </div>
 
             <div class="flex items-center justify-between">
-                <p class="text-sm text-muted-foreground">{{ assets.total }} activos · {{ selected.size }} seleccionados</p>
+                <p class="text-sm text-muted-foreground">
+                    {{ assets.total }} activos ·
+                    {{ selected.size }} seleccionados
+                </p>
                 <Pager :links="assets.links" />
             </div>
         </template>

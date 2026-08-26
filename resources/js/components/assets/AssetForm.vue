@@ -38,6 +38,7 @@ const props = defineProps<{
     formOptions: AssetFormOptions;
     mode: 'create' | 'edit';
     assetId?: number;
+    canOverrideGrantor?: boolean;
 }>();
 
 const form = props.form;
@@ -75,35 +76,73 @@ const responsibleOptions = computed(() =>
         .map((r) => ({ value: r.id, label: r.full_name })),
 );
 
+// La responsiva de entrega solo aplica en el alta (al editar, cambiar de
+// responsable pasa por el diálogo dedicado de la ficha) y solo cuando en
+// verdad se está asignando a alguien, no al dejarlo "sin asignar".
+const showResponsibilitySection = computed(
+    () => props.mode === 'create' && form.current_responsible_id !== '',
+);
+const documentSettings = computed(
+    () => options.value.documentSettingsByCompany[Number(form.company_id)],
+);
+
 // Al cambiar de empresa, limpia cualquier sucursal/área/responsable
 // seleccionado que ya no pertenezca a la nueva empresa: nunca dejar un ID
 // oculto de la empresa anterior.
 watch(
     () => form.company_id,
     (newCompanyId) => {
-        const branch = options.value.branches.find((b) => b.id === form.branch_id);
+        const branch = options.value.branches.find(
+            (b) => b.id === form.branch_id,
+        );
 
         if (branch && String(branch.company_id) !== String(newCompanyId)) {
             form.branch_id = '';
         }
 
-        const department = options.value.departments.find((d) => d.id === form.department_id);
+        const department = options.value.departments.find(
+            (d) => d.id === form.department_id,
+        );
 
-        if (department && department.company_id && String(department.company_id) !== String(newCompanyId)) {
+        if (
+            department &&
+            department.company_id &&
+            String(department.company_id) !== String(newCompanyId)
+        ) {
             form.department_id = '';
         }
 
-        const currentResponsible = options.value.responsiblePeople.find((r) => r.id === form.current_responsible_id);
+        const currentResponsible = options.value.responsiblePeople.find(
+            (r) => r.id === form.current_responsible_id,
+        );
 
-        if (currentResponsible && String(currentResponsible.company_id) !== String(newCompanyId)) {
+        if (
+            currentResponsible &&
+            String(currentResponsible.company_id) !== String(newCompanyId)
+        ) {
             form.current_responsible_id = '';
         }
 
-        const deliveredBy = options.value.responsiblePeople.find((r) => r.id === form.delivered_by_responsible_id);
+        const deliveredBy = options.value.responsiblePeople.find(
+            (r) => r.id === form.delivered_by_responsible_id,
+        );
 
-        if (deliveredBy && String(deliveredBy.company_id) !== String(newCompanyId)) {
+        if (
+            deliveredBy &&
+            String(deliveredBy.company_id) !== String(newCompanyId)
+        ) {
             form.delivered_by_responsible_id = '';
         }
+    },
+);
+
+// Al elegir empresa, la responsiva sigue el valor por defecto configurado
+// para ella (el usuario puede seguir sobreescribiéndolo después).
+watch(
+    () => form.company_id,
+    () => {
+        form.generate_responsibility =
+            documentSettings.value?.auto_generate_on_assignment ?? true;
     },
 );
 
@@ -264,7 +303,11 @@ function onInvoiceFileChange(event: Event) {
                         <Combobox
                             v-model="form.branch_id"
                             :options="branchOptions"
-                            :placeholder="form.company_id ? 'Selecciona una sucursal' : 'Primero selecciona una empresa'"
+                            :placeholder="
+                                form.company_id
+                                    ? 'Selecciona una sucursal'
+                                    : 'Primero selecciona una empresa'
+                            "
                             :disabled="!form.company_id"
                             class="flex-1"
                         />
@@ -273,7 +316,11 @@ function onInvoiceFileChange(event: Event) {
                             variant="outline"
                             size="icon"
                             :disabled="!form.company_id"
-                            :title="form.company_id ? 'Nueva sucursal' : 'Primero selecciona una empresa'"
+                            :title="
+                                form.company_id
+                                    ? 'Nueva sucursal'
+                                    : 'Primero selecciona una empresa'
+                            "
                             @click="branchDialogOpen = true"
                         >
                             +
@@ -421,8 +468,12 @@ function onInvoiceFileChange(event: Event) {
                             Generar
                         </Button>
                     </div>
-                    <p v-if="!form.company_id || !form.asset_type_id" class="text-xs text-muted-foreground">
-                        Escribe la clave a mano o selecciona empresa y tipo de activo arriba para generarla automáticamente.
+                    <p
+                        v-if="!form.company_id || !form.asset_type_id"
+                        class="text-xs text-muted-foreground"
+                    >
+                        Escribe la clave a mano o selecciona empresa y tipo de
+                        activo arriba para generarla automáticamente.
                     </p>
                     <InputError :message="form.errors.internal_code" />
                 </div>
@@ -433,7 +484,8 @@ function onInvoiceFileChange(event: Event) {
         <section class="space-y-4">
             <h2 class="text-sm font-semibold text-foreground">Asignación</h2>
             <p v-if="!form.company_id" class="text-xs text-muted-foreground">
-                Selecciona una empresa en "Ubicación" para poder elegir quién tiene el equipo y quién lo entregó.
+                Selecciona una empresa en "Ubicación" para poder elegir quién
+                tiene el equipo y quién lo entregó.
             </p>
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="grid gap-2">
@@ -442,7 +494,11 @@ function onInvoiceFileChange(event: Event) {
                         <Combobox
                             v-model="form.current_responsible_id"
                             :options="responsibleOptions"
-                            :placeholder="form.company_id ? 'Opcional (almacenado)' : 'Primero selecciona una empresa'"
+                            :placeholder="
+                                form.company_id
+                                    ? 'Opcional (almacenado)'
+                                    : 'Primero selecciona una empresa'
+                            "
                             :disabled="!form.company_id"
                             class="flex-1"
                         />
@@ -451,7 +507,11 @@ function onInvoiceFileChange(event: Event) {
                             variant="outline"
                             size="icon"
                             :disabled="!form.company_id"
-                            :title="form.company_id ? 'Nuevo responsable' : 'Primero selecciona una empresa'"
+                            :title="
+                                form.company_id
+                                    ? 'Nuevo responsable'
+                                    : 'Primero selecciona una empresa'
+                            "
                             @click="responsibleDialogOpen = 'current'"
                         >
                             +
@@ -461,13 +521,19 @@ function onInvoiceFileChange(event: Event) {
                 <div class="grid gap-2">
                     <Label>
                         Entregó / responsable de revisión
-                        <HelpTip text="Quién hizo la entrega física del equipo o realizó la última revisión, no necesariamente quien lo usa. Suele ser alguien de sistemas o del área que lo resguarda." />
+                        <HelpTip
+                            text="Quién hizo la entrega física del equipo o realizó la última revisión, no necesariamente quien lo usa. Suele ser alguien de sistemas o del área que lo resguarda."
+                        />
                     </Label>
                     <div class="flex gap-2">
                         <Combobox
                             v-model="form.delivered_by_responsible_id"
                             :options="responsibleOptions"
-                            :placeholder="form.company_id ? 'Opcional' : 'Primero selecciona una empresa'"
+                            :placeholder="
+                                form.company_id
+                                    ? 'Opcional'
+                                    : 'Primero selecciona una empresa'
+                            "
                             :disabled="!form.company_id"
                             class="flex-1"
                         />
@@ -476,13 +542,90 @@ function onInvoiceFileChange(event: Event) {
                             variant="outline"
                             size="icon"
                             :disabled="!form.company_id"
-                            :title="form.company_id ? 'Nuevo responsable' : 'Primero selecciona una empresa'"
+                            :title="
+                                form.company_id
+                                    ? 'Nuevo responsable'
+                                    : 'Primero selecciona una empresa'
+                            "
                             @click="responsibleDialogOpen = 'delivered'"
                         >
                             +
                         </Button>
                     </div>
                 </div>
+            </div>
+
+            <div
+                v-if="showResponsibilitySection"
+                class="grid gap-3 rounded-lg border border-border p-3"
+            >
+                <div class="flex items-center justify-between gap-4">
+                    <div class="space-y-0.5">
+                        <Label for="generate-responsibility"
+                            >Generar responsiva de entrega</Label
+                        >
+                        <p class="text-xs text-muted-foreground">
+                            Al guardar, se preparará un borrador de responsiva
+                            para el responsable elegido, listo para revisar,
+                            imprimir o enviar a firma.
+                        </p>
+                    </div>
+                    <Switch
+                        id="generate-responsibility"
+                        v-model="form.generate_responsibility"
+                    />
+                </div>
+
+                <div
+                    v-if="form.generate_responsibility && canOverrideGrantor"
+                    class="grid gap-3 rounded-lg border border-border bg-muted/40 p-3"
+                >
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Otorgante (por defecto:
+                        {{
+                            documentSettings?.default_grantor_name ??
+                            'sin configurar'
+                        }})
+                    </p>
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        <div class="grid gap-2">
+                            <Label for="grantor-name"
+                                >Nombre del otorgante</Label
+                            >
+                            <Input
+                                id="grantor-name"
+                                v-model="form.grantor_name"
+                                :placeholder="
+                                    documentSettings?.default_grantor_name ?? ''
+                                "
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="grantor-position"
+                                >Puesto del otorgante</Label
+                            >
+                            <Input
+                                id="grantor-position"
+                                v-model="form.grantor_position"
+                                :placeholder="
+                                    documentSettings?.default_grantor_position ??
+                                    ''
+                                "
+                            />
+                        </div>
+                    </div>
+                    <InputError :message="form.errors.grantor_name" />
+                </div>
+                <p
+                    v-else-if="form.generate_responsibility"
+                    class="text-xs text-muted-foreground"
+                >
+                    Otorgante:
+                    {{
+                        documentSettings?.default_grantor_name ??
+                        'sin configurar'
+                    }}
+                </p>
             </div>
         </section>
 
@@ -576,7 +719,9 @@ function onInvoiceFileChange(event: Event) {
                 <div class="grid gap-2">
                     <Label for="asset-components">
                         Componentes / incluye
-                        <HelpTip text="Accesorios sueltos que se entregan junto con el equipo (cargador, mochila, mouse). Si quieres darles seguimiento individual con su propio QR, regístralos como piezas en vez de solo anotarlos aquí." />
+                        <HelpTip
+                            text="Accesorios sueltos que se entregan junto con el equipo (cargador, mochila, mouse). Si quieres darles seguimiento individual con su propio QR, regístralos como piezas en vez de solo anotarlos aquí."
+                        />
                     </Label>
                     <Textarea
                         id="asset-components"
@@ -588,7 +733,9 @@ function onInvoiceFileChange(event: Event) {
                 <div class="grid gap-2">
                     <Label for="asset-specs">
                         Especificaciones
-                        <HelpTip text="Ficha técnica del equipo (procesador, memoria, almacenamiento). Es texto libre, solo para consulta." />
+                        <HelpTip
+                            text="Ficha técnica del equipo (procesador, memoria, almacenamiento). Es texto libre, solo para consulta."
+                        />
                     </Label>
                     <Textarea
                         id="asset-specs"

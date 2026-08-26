@@ -6,6 +6,9 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class DepartmentRequest extends FormRequest
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [

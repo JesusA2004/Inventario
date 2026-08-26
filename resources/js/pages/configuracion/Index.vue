@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { FileSignature } from '@lucide/vue';
 import Combobox from '@/components/Combobox.vue';
 import HelpTip from '@/components/HelpTip.vue';
 import InputError from '@/components/InputError.vue';
@@ -31,7 +32,9 @@ const props = defineProps<{
 }>();
 
 defineOptions({
-    layout: { breadcrumbs: [{ title: 'Configuración', href: '/configuracion' }] },
+    layout: {
+        breadcrumbs: [{ title: 'Configuración', href: '/configuracion' }],
+    },
 });
 
 const form = useForm({
@@ -48,7 +51,10 @@ function onLogoChange(event: Event) {
 }
 
 function submit() {
-    form.transform((data) => ({ ...data, _method: 'put' })).post('/configuracion', { forceFormData: true, preserveScroll: true });
+    form.transform((data) => ({ ...data, _method: 'put' })).post(
+        '/configuracion',
+        { forceFormData: true, preserveScroll: true },
+    );
 }
 </script>
 
@@ -56,7 +62,19 @@ function submit() {
     <Head title="Configuración" />
 
     <div class="flex w-full max-w-5xl flex-col gap-6">
-        <PageHeader title="Configuración" description="Preferencias generales del sistema" />
+        <PageHeader
+            title="Configuración"
+            description="Preferencias generales del sistema"
+        >
+            <template #actions>
+                <Link href="/configuracion/responsivas">
+                    <Button variant="outline">
+                        <FileSignature class="mr-1 size-4" />
+                        Documentos / Responsivas
+                    </Button>
+                </Link>
+            </template>
+        </PageHeader>
 
         <form class="space-y-6" @submit.prevent="submit">
             <div class="grid gap-6 sm:grid-cols-2">
@@ -68,8 +86,17 @@ function submit() {
 
                 <div class="grid gap-2">
                     <Label for="logo">Logo</Label>
-                    <img v-if="settings.logo_path" :src="`/storage/${settings.logo_path}`" class="mb-2 h-12 rounded border border-border object-contain" />
-                    <Input id="logo" type="file" accept="image/*" @change="onLogoChange" />
+                    <img
+                        v-if="settings.logo_path"
+                        :src="`/storage/${settings.logo_path}`"
+                        class="mb-2 h-12 rounded border border-border object-contain"
+                    />
+                    <Input
+                        id="logo"
+                        type="file"
+                        accept="image/*"
+                        @change="onLogoChange"
+                    />
                     <InputError :message="form.errors.logo" />
                 </div>
             </div>
@@ -78,17 +105,31 @@ function submit() {
                 <div class="grid gap-2">
                     <Label for="qr-domain" class="flex items-center gap-1.5">
                         Dominio base para códigos QR
-                        <HelpTip text="El enlace que queda guardado dentro de cada QR impreso empieza con este dominio. Solo cámbialo si vas a publicar el sistema en un dominio propio; de lo contrario, no lo toques." />
+                        <HelpTip
+                            text="El enlace que queda guardado dentro de cada QR impreso empieza con este dominio. Solo cámbialo si vas a publicar el sistema en un dominio propio; de lo contrario, no lo toques."
+                        />
                     </Label>
-                    <Input id="qr-domain" v-model="form.qr_base_url" placeholder="https://inventario.mr-lana.com" />
-                    <p class="text-xs text-muted-foreground">Déjalo vacío para usar automáticamente la URL de la aplicación.</p>
+                    <Input
+                        id="qr-domain"
+                        v-model="form.qr_base_url"
+                        placeholder="https://inventario.mr-lana.com"
+                    />
+                    <p class="text-xs text-muted-foreground">
+                        Déjalo vacío para usar automáticamente la URL de la
+                        aplicación.
+                    </p>
                     <InputError :message="form.errors.qr_base_url" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="code-format">Formato de clave interna</Label>
-                    <Input id="code-format" v-model="form.internal_code_format" />
-                    <p class="text-xs text-muted-foreground">Referencia informativa: {empresa}-{tipo}-{consecutivo}.</p>
+                    <Input
+                        id="code-format"
+                        v-model="form.internal_code_format"
+                    />
+                    <p class="text-xs text-muted-foreground">
+                        Referencia informativa: {empresa}-{tipo}-{consecutivo}.
+                    </p>
                 </div>
             </div>
 
@@ -96,13 +137,21 @@ function submit() {
                 <div class="grid gap-2">
                     <Label class="flex items-center gap-1.5">
                         Plantilla de etiquetas predeterminada
-                        <HelpTip text="Solo define el número de columnas por hoja al imprimir etiquetas en lote. El tamaño de cada etiqueta (pequeño, mediano, grande) se elige aparte, en el diálogo de Etiquetas QR." />
+                        <HelpTip
+                            text="Solo define el número de columnas por hoja al imprimir etiquetas en lote. El tamaño de cada etiqueta (pequeño, mediano, grande) se elige aparte, en el diálogo de Etiquetas QR."
+                        />
                     </Label>
                     <Select v-model="form.label_template">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger class="w-full"
+                            ><SelectValue
+                        /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="standard">Estándar (2 columnas)</SelectItem>
-                            <SelectItem value="compact">Compacta (3 columnas)</SelectItem>
+                            <SelectItem value="standard"
+                                >Estándar (2 columnas)</SelectItem
+                            >
+                            <SelectItem value="compact"
+                                >Compacta (3 columnas)</SelectItem
+                            >
                         </SelectContent>
                     </Select>
                 </div>
@@ -111,7 +160,12 @@ function submit() {
                     <Label>Empresa predeterminada (opcional)</Label>
                     <Combobox
                         v-model="form.default_company_id"
-                        :options="companies.map((c) => ({ value: c.id, label: c.name }))"
+                        :options="
+                            companies.map((c) => ({
+                                value: c.id,
+                                label: c.name,
+                            }))
+                        "
                         placeholder="Ninguna"
                     />
                 </div>

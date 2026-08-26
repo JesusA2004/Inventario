@@ -14,7 +14,12 @@ type Part = {
     company_id: number | null;
     branch_id: number | null;
     related_asset_id: number | null;
-    relatedAsset?: { id: number; public_id: string; internal_code: string; name: string } | null;
+    relatedAsset?: {
+        id: number;
+        public_id: string;
+        internal_code: string;
+        name: string;
+    } | null;
     brand_id: number | null;
     serial_number: string | null;
     part_number: string | null;
@@ -38,7 +43,10 @@ const props = defineProps<{
 setLayoutProps({
     breadcrumbs: [
         { title: 'Piezas y refacciones', href: '/piezas' },
-        { title: 'Editar pieza', href: `/piezas/${props.part.public_id}/editar` },
+        {
+            title: 'Editar pieza',
+            href: `/piezas/${props.part.public_id}/editar`,
+        },
     ],
 });
 
@@ -72,11 +80,20 @@ function submit() {
     <Head :title="`Editar ${part.internal_code}`" />
 
     <div class="flex w-full flex-col gap-6 pb-24">
-        <PageHeader :title="`Editar ${part.internal_code}`" :description="part.name" />
-        <PartForm :form="form" :form-options="formOptions" :initial-related-asset="part.relatedAsset" />
+        <PageHeader
+            :title="`Editar ${part.internal_code}`"
+            :description="part.name"
+        />
+        <PartForm
+            :form="form"
+            :form-options="formOptions"
+            :initial-related-asset="part.relatedAsset"
+        />
     </div>
 
-    <div class="sticky bottom-0 -mx-4 flex justify-end border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-t-xl sm:border sm:px-6">
+    <div
+        class="sticky bottom-0 -mx-4 flex justify-end border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-t-xl sm:border sm:px-6"
+    >
         <Button type="button" :disabled="form.processing" @click="submit">
             <Spinner v-if="form.processing" class="mr-1" />
             Guardar cambios

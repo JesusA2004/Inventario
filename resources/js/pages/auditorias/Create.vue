@@ -34,11 +34,17 @@ const form = useForm({
 });
 
 const branchOptions = computed(() =>
-    props.branches.filter((b) => String(b.company_id) === String(form.company_id)).map((b) => ({ value: b.id, label: b.name })),
+    props.branches
+        .filter((b) => String(b.company_id) === String(form.company_id))
+        .map((b) => ({ value: b.id, label: b.name })),
 );
 const departmentOptions = computed(() =>
     props.departments
-        .filter((d) => !d.company_id || String(d.company_id) === String(form.company_id))
+        .filter(
+            (d) =>
+                !d.company_id ||
+                String(d.company_id) === String(form.company_id),
+        )
         .map((d) => ({ value: d.id, label: d.name })),
 );
 
@@ -51,9 +57,15 @@ watch(
             form.branch_id = '';
         }
 
-        const department = props.departments.find((d) => d.id === form.department_id);
+        const department = props.departments.find(
+            (d) => d.id === form.department_id,
+        );
 
-        if (department && department.company_id && String(department.company_id) !== String(newCompanyId)) {
+        if (
+            department &&
+            department.company_id &&
+            String(department.company_id) !== String(newCompanyId)
+        ) {
             form.department_id = '';
         }
     },
@@ -65,14 +77,21 @@ watch(
     (newBranchId) => {
         const branch = props.branches.find((b) => b.id === newBranchId);
 
-        if (branch && branch.company_id != null && String(branch.company_id) !== String(form.company_id)) {
+        if (
+            branch &&
+            branch.company_id != null &&
+            String(branch.company_id) !== String(form.company_id)
+        ) {
             form.company_id = branch.company_id;
         }
     },
 );
 
 function submit() {
-    form.transform((data) => ({ ...data, department_id: data.department_id || null })).post('/auditorias');
+    form.transform((data) => ({
+        ...data,
+        department_id: data.department_id || null,
+    })).post('/auditorias');
 }
 </script>
 
@@ -80,7 +99,10 @@ function submit() {
     <Head title="Nueva auditoría" />
 
     <div class="flex w-full max-w-4xl flex-col gap-6">
-        <PageHeader title="Nueva auditoría" description="Selecciona el alcance del levantamiento físico" />
+        <PageHeader
+            title="Nueva auditoría"
+            description="Selecciona el alcance del levantamiento físico"
+        />
 
         <form class="space-y-4" @submit.prevent="submit">
             <div class="grid gap-4 sm:grid-cols-2">
@@ -88,7 +110,12 @@ function submit() {
                     <Label>Empresa</Label>
                     <Combobox
                         v-model="form.company_id"
-                        :options="companies.map((c) => ({ value: c.id, label: c.name }))"
+                        :options="
+                            companies.map((c) => ({
+                                value: c.id,
+                                label: c.name,
+                            }))
+                        "
                         placeholder="Selecciona una empresa"
                     />
                     <InputError :message="form.errors.company_id" />
@@ -98,7 +125,11 @@ function submit() {
                     <Combobox
                         v-model="form.branch_id"
                         :options="branchOptions"
-                        :placeholder="form.company_id ? 'Selecciona una sucursal' : 'Primero selecciona una empresa'"
+                        :placeholder="
+                            form.company_id
+                                ? 'Selecciona una sucursal'
+                                : 'Primero selecciona una empresa'
+                        "
                         :disabled="!form.company_id"
                     />
                     <InputError :message="form.errors.branch_id" />
@@ -110,18 +141,31 @@ function submit() {
                     <Combobox
                         v-model="form.department_id"
                         :options="departmentOptions"
-                        :placeholder="form.company_id ? 'Toda la sucursal' : 'Primero selecciona una empresa'"
+                        :placeholder="
+                            form.company_id
+                                ? 'Toda la sucursal'
+                                : 'Primero selecciona una empresa'
+                        "
                         :disabled="!form.company_id"
                     />
                     <InputError :message="form.errors.department_id" />
                 </div>
                 <div class="grid gap-2">
                     <Label for="audit-name">Nombre (opcional)</Label>
-                    <Input id="audit-name" v-model="form.name" placeholder="Se genera automáticamente si se deja vacío" />
+                    <Input
+                        id="audit-name"
+                        v-model="form.name"
+                        placeholder="Se genera automáticamente si se deja vacío"
+                    />
                 </div>
             </div>
 
-            <Button type="submit" :disabled="form.processing || !form.company_id || !form.branch_id">
+            <Button
+                type="submit"
+                :disabled="
+                    form.processing || !form.company_id || !form.branch_id
+                "
+            >
                 <Spinner v-if="form.processing" class="mr-1" />
                 Iniciar auditoría
             </Button>

@@ -43,23 +43,38 @@ const permissionLabels: Record<string, string> = {
     <Head title="Roles y permisos" />
 
     <div class="flex flex-col gap-6">
-        <PageHeader title="Roles y permisos" description="Los roles determinan qué puede hacer cada usuario en el sistema" />
+        <PageHeader
+            title="Roles y permisos"
+            description="Los roles determinan qué puede hacer cada usuario en el sistema"
+        />
 
         <div class="grid gap-4 sm:grid-cols-2">
             <Card v-for="role in roles" :key="role.name">
-                <CardHeader class="flex flex-row items-center justify-between space-y-0">
+                <CardHeader
+                    class="flex flex-row items-center justify-between space-y-0"
+                >
                     <CardTitle class="flex items-center gap-2 text-base">
                         <ShieldCheck class="size-4 text-primary" />
                         {{ role.label }}
                     </CardTitle>
-                    <Badge variant="outline">{{ role.users_count }} usuario(s)</Badge>
+                    <Badge variant="outline"
+                        >{{ role.users_count }} usuario(s)</Badge
+                    >
                 </CardHeader>
                 <CardContent>
-                    <div v-if="role.name === 'superadministrador'" class="text-sm text-muted-foreground">
+                    <div
+                        v-if="role.name === 'superadministrador'"
+                        class="text-sm text-muted-foreground"
+                    >
                         Acceso total a todos los módulos del sistema.
                     </div>
                     <div v-else class="flex flex-wrap gap-1.5">
-                        <Badge v-for="permission in role.permissions" :key="permission" variant="secondary" class="font-normal">
+                        <Badge
+                            v-for="permission in role.permissions"
+                            :key="permission"
+                            variant="secondary"
+                            class="font-normal"
+                        >
                             {{ permissionLabels[permission] ?? permission }}
                         </Badge>
                     </div>

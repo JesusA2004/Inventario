@@ -37,31 +37,49 @@ class Loan extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Asset, $this>
+     */
     public function asset(): BelongsTo
     {
         return $this->belongsTo(Asset::class);
     }
 
+    /**
+     * @return BelongsTo<Company, $this>
+     */
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
     }
 
+    /**
+     * @return BelongsTo<ResponsiblePerson, $this>
+     */
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(ResponsiblePerson::class, 'assigned_to_responsible_id');
     }
 
+    /**
+     * @return BelongsTo<ResponsiblePerson, $this>
+     */
     public function deliveredBy(): BelongsTo
     {
         return $this->belongsTo(ResponsiblePerson::class, 'delivered_by_responsible_id');
     }
 
+    /**
+     * @return BelongsTo<ResponsiblePerson, $this>
+     */
     public function receivedBy(): BelongsTo
     {
         return $this->belongsTo(ResponsiblePerson::class, 'received_by_responsible_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

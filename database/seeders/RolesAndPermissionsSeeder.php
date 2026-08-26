@@ -19,6 +19,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver-catalogos', 'gestionar-catalogos',
             'gestionar-usuarios',
             'gestionar-configuracion',
+            'ver-responsivas', 'crear-responsivas', 'enviar-responsivas',
+            'gestionar-responsivas', 'ver-evidencia-responsivas', 'configurar-responsivas',
         ];
 
         foreach ($permissions as $permission) {
@@ -36,6 +38,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver-auditorias', 'gestionar-auditorias',
             'ver-reportes',
             'ver-catalogos', 'gestionar-catalogos',
+            // "gestionar" se incluye además de ver/crear/enviar porque, en la
+            // operación diaria, Sistemas necesita poder reenviar, cancelar y
+            // subir copias físicas de responsivas (no solo verlas/crearlas).
+            'ver-responsivas', 'crear-responsivas', 'enviar-responsivas', 'gestionar-responsivas',
         ]);
 
         $auditor = Role::findOrCreate('auditor', 'web');
@@ -43,6 +49,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver-activos', 'ver-piezas', 'ver-prestamos',
             'ver-auditorias', 'gestionar-auditorias',
             'ver-reportes', 'ver-catalogos',
+            'ver-responsivas',
         ]);
 
         $consulta = Role::findOrCreate('consulta', 'web');

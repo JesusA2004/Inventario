@@ -10,10 +10,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Assets\AssetRequest;
 use App\Http\Resources\AssetResource;
 use App\Models\Asset;
+use App\Models\AssetResponsibility;
 use App\Models\AssetType;
 use App\Models\Branch;
 use App\Models\Brand;
 use App\Models\Company;
+use App\Models\CompanyDocumentSetting;
 use App\Models\Department;
 use App\Models\ResponsiblePerson;
 use App\Services\AssetCodeService;
@@ -21,6 +23,7 @@ use App\Services\AssetFileService;
 use App\Services\AssetMovementService;
 use App\Services\LabelSizeResolver;
 use App\Services\QrCodeService;
+use App\Services\Responsibilities\AssetResponsibilityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -31,6 +34,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -61,6 +65,7 @@ class AssetController extends Controller implements HasMiddleware
         private readonly AssetMovementService $movements,
         private readonly QrCodeService $qrCodeService,
         private readonly AssetFileService $files,
+        private readonly AssetResponsibilityService $responsibilities,
     ) {}
 
     public static function middleware(): array
@@ -278,12 +283,23 @@ class AssetController extends Controller implements HasMiddleware
         return Inertia::render('activos/Create', [
             'formOptions' => $this->formOptions(),
             'prefill' => $request->only(['company_id', 'branch_id', 'department_id']),
+            'canOverrideGrantor' => (bool) $request->user()?->can('gestionar-responsivas'),
         ]);
     }
 
     public function store(AssetRequest $request): RedirectResponse
     {
         $data = $request->safe()->except(['invoice_file', 'photos']);
+
+        // Campos aparte de AssetRequest: solo gobiernan si se genera la
+        // responsiva de entrega al momento del alta, no el activo en sí, así
+        // que no deben colarse en Asset::create().
+        $responsibilityOptions = $request->validate([
+            'generate_responsibility' => ['boolean'],
+            'grantor_name' => ['nullable', 'string', 'max:255'],
+            'grantor_position' => ['nullable', 'string', 'max:255'],
+            'grantor_email' => ['nullable', 'email', 'max:255'],
+        ]);
 
         $asset = DB::transaction(function () use ($data, $request) {
             $asset = Asset::create([...$data, 'created_by' => $request->user()->id]);
@@ -297,6 +313,38 @@ class AssetController extends Controller implements HasMiddleware
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Activo {$asset->internal_code} registrado correctamente."]);
 
+        // Si ya se capturó un responsable real durante el alta, se ofrece
+        // generar de una vez la responsiva de entrega (mismo comportamiento
+        // que "Asignar / cambiar responsable" en la ficha), en vez de obligar
+        // a repetir el paso justo después de crear el activo. Se hace fuera
+        // de la transacción anterior y sin dejar que una responsiva mal
+        // configurada (sin plantilla u otorgante) impida guardar el activo.
+        if ($asset->current_responsible_id && $request->boolean('generate_responsibility', true)) {
+            $overrides = $request->user()->can('gestionar-responsivas')
+                ? array_filter([
+                    'grantor_name' => $responsibilityOptions['grantor_name'] ?? null,
+                    'grantor_position' => $responsibilityOptions['grantor_position'] ?? null,
+                    'grantor_email' => $responsibilityOptions['grantor_email'] ?? null,
+                ], fn ($value) => filled($value))
+                : [];
+
+            try {
+                $responsible = ResponsiblePerson::findOrFail($asset->current_responsible_id);
+                $responsibility = $this->responsibilities->createDraft($asset->fresh(), $responsible, $overrides, $request->user());
+
+                Inertia::flash('responsibilityCreated', [
+                    'public_id' => $responsibility->public_id,
+                    'receiver_name' => $responsibility->receiver_name,
+                    'has_email' => filled($responsibility->receiver_email),
+                ]);
+            } catch (ValidationException $e) {
+                Inertia::flash('toast', [
+                    'type' => 'error',
+                    'message' => 'El activo se guardó, pero la responsiva no pudo generarse: '.($e->validator->errors()->first() ?: 'revisa la configuración de documentos.'),
+                ]);
+            }
+        }
+
         if ($request->boolean('create_another')) {
             return redirect()->route('assets.create', $request->only(['company_id', 'branch_id', 'department_id']));
         }
@@ -304,8 +352,10 @@ class AssetController extends Controller implements HasMiddleware
         return redirect()->route('assets.show', $asset)->with('justCreated', true);
     }
 
-    public function show(Asset $asset): Response
+    public function show(Request $request, Asset $asset): Response
     {
+        $canSeeResponsibilities = (bool) $request->user()?->can('ver-responsivas');
+
         $asset->load([
             'company', 'branch', 'department', 'assetType', 'brand',
             'currentResponsible', 'deliveredByResponsible', 'creator:id,name',
@@ -316,6 +366,27 @@ class AssetController extends Controller implements HasMiddleware
             'loans.assignedTo', 'loans.deliveredBy', 'loans.receivedBy',
             'parts.brand',
         ]);
+
+        if ($canSeeResponsibilities) {
+            $asset->load('responsibilities');
+        }
+
+        $documentSettings = $asset->company ? CompanyDocumentSetting::forCompany($asset->company) : null;
+
+        // Si el responsable actual todavía no tiene ninguna responsiva
+        // (p. ej. se asignó antes de que existiera este módulo), la ficha
+        // ofrece un botón para generarla manualmente en vez de obligar a
+        // reasignar el responsable solo para disparar el flujo. El botón
+        // sigue disponible aunque ya exista una (para volver a emitirla con
+        // datos corregidos o dejar constancia de un motivo), solo cambia su
+        // etiqueta según este flag.
+        $needsResponsibilityForCurrentResponsible = $canSeeResponsibilities
+            && $asset->current_responsible_id
+            && ! $asset->responsibilities->contains(
+                fn (AssetResponsibility $r) => $r->responsible_person_id === $asset->current_responsible_id,
+            );
+        $canGenerateResponsibility = (bool) $asset->current_responsible_id
+            && (bool) $request->user()?->can('crear-responsivas');
 
         return Inertia::render('activos/Show', [
             // ->resolve() es obligatorio aquí: Inertia trata un JsonResource
@@ -334,6 +405,14 @@ class AssetController extends Controller implements HasMiddleware
                     $query->whereNull('company_id')->orWhere('company_id', $asset->company_id);
                 })->orderBy('name')->get(['id', 'name']),
                 'responsiblePeople' => ResponsiblePerson::query()->active()->where('company_id', $asset->company_id)->orderBy('full_name')->get(['id', 'full_name']),
+                'documentSettings' => [
+                    'default_grantor_name' => $documentSettings->default_grantor_name,
+                    'default_grantor_position' => $documentSettings->default_grantor_position,
+                    'auto_generate_on_assignment' => $documentSettings->auto_generate_on_assignment,
+                ],
+                'canOverrideGrantor' => (bool) $request->user()?->can('gestionar-responsivas'),
+                'needsResponsibilityForCurrentResponsible' => $needsResponsibilityForCurrentResponsible,
+                'canGenerateResponsibility' => $canGenerateResponsibility,
             ],
             'labelSizes' => LabelSizeResolver::sharedProps(),
         ]);
@@ -416,7 +495,31 @@ class AssetController extends Controller implements HasMiddleware
             'brands' => Brand::query()->active()->orderBy('name')->get(['id', 'name']),
             'responsiblePeople' => ResponsiblePerson::query()->active()->orderBy('full_name')->get(['id', 'full_name', 'company_id', 'branch_id', 'department_id']),
             'statuses' => AssetStatus::options(),
+            'documentSettingsByCompany' => $this->documentSettingsByCompany(),
         ];
+    }
+
+    /**
+     * Config de responsivas (otorgante por defecto, generación automática)
+     * de cada empresa activa, indexada por company_id: el formulario de alta
+     * elige la empresa dinámicamente, así que no se puede resolver una sola
+     * config de antemano como sí ocurre en la ficha de un activo existente.
+     *
+     * @return array<int, array{default_grantor_name: ?string, default_grantor_position: ?string, auto_generate_on_assignment: bool}>
+     */
+    private function documentSettingsByCompany(): array
+    {
+        return Company::query()->active()->get(['id', 'name', 'legal_name'])
+            ->mapWithKeys(function (Company $company) {
+                $settings = CompanyDocumentSetting::forCompany($company);
+
+                return [$company->id => [
+                    'default_grantor_name' => $settings->default_grantor_name,
+                    'default_grantor_position' => $settings->default_grantor_position,
+                    'auto_generate_on_assignment' => $settings->auto_generate_on_assignment,
+                ]];
+            })
+            ->all();
     }
 
     /**

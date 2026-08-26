@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Models\Asset;
 use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -13,7 +14,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
  * @implements FromCollection<int, Asset>
  * @implements WithMapping<Asset>
  */
-class DecommissionedAssetsExport implements FromCollection, WithHeadings, WithMapping, WithTitle
+class DecommissionedAssetsExport implements Export, FromCollection, WithHeadings, WithMapping, WithTitle
 {
     /**
      * @param  Collection<int, Asset>  $assets

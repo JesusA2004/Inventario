@@ -94,8 +94,15 @@ class DashboardController extends Controller
                 ->count(),
         ];
 
+        // ->toBase() antes de un ->select() con columnas agregadas (COUNT):
+        // sin esto, Eloquent sigue intentando hidratar cada fila como un
+        // modelo completo (Asset/Loan/Part), cuando en realidad solo trae
+        // una columna de agrupación + el total. ->toBase() conserva todos los
+        // where/join/when ya aplicados pero devuelve filas planas (stdClass),
+        // que es lo que estas consultas de agregados realmente son.
         $byCompany = (clone $baseQuery)
             ->join('companies', 'companies.id', '=', 'assets.company_id')
+            ->toBase()
             ->select('companies.name', DB::raw('count(*) as total'))
             ->groupBy('companies.name')
             ->orderByDesc('total')
@@ -103,6 +110,7 @@ class DashboardController extends Controller
 
         $byType = (clone $baseQuery)
             ->join('asset_types', 'asset_types.id', '=', 'assets.asset_type_id')
+            ->toBase()
             ->select('asset_types.name', DB::raw('count(*) as total'))
             ->groupBy('asset_types.name')
             ->orderByDesc('total')
@@ -110,11 +118,12 @@ class DashboardController extends Controller
             ->get();
 
         $byStatus = (clone $baseQuery)
+            ->toBase()
             ->select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->get()
             ->map(function ($row) {
-                $status = $row->status instanceof AssetStatus ? $row->status : AssetStatus::tryFrom((string) $row->status);
+                $status = AssetStatus::tryFrom((string) $row->status);
 
                 return [
                     'label' => $status?->label() ?? $row->status,
@@ -125,6 +134,7 @@ class DashboardController extends Controller
 
         $byBranch = (clone $baseQuery)
             ->join('branches', 'branches.id', '=', 'assets.branch_id')
+            ->toBase()
             ->select('branches.name', DB::raw('count(*) as total'))
             ->groupBy('branches.name')
             ->orderByDesc('total')
@@ -133,6 +143,7 @@ class DashboardController extends Controller
 
         $byDepartment = (clone $baseQuery)
             ->join('departments', 'departments.id', '=', 'assets.department_id')
+            ->toBase()
             ->select('departments.name', DB::raw('count(*) as total'))
             ->groupBy('departments.name')
             ->orderByDesc('total')
@@ -142,11 +153,12 @@ class DashboardController extends Controller
         $byLoanStatus = Loan::query()
             ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
             ->when($branchId, fn ($query) => $query->whereHas('asset', fn ($asset) => $asset->where('branch_id', $branchId)))
+            ->toBase()
             ->select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->get()
             ->map(function ($row) {
-                $status = $row->status instanceof LoanStatus ? $row->status : LoanStatus::tryFrom((string) $row->status);
+                $status = LoanStatus::tryFrom((string) $row->status);
 
                 return ['label' => $status?->label() ?? (string) $row->status, 'color' => $status?->color() ?? 'gray', 'total' => $row->total];
             });
@@ -154,17 +166,19 @@ class DashboardController extends Controller
         $byPartStatus = Part::query()
             ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
             ->when($branchId, fn ($query) => $query->where('branch_id', $branchId))
+            ->toBase()
             ->select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->get()
             ->map(function ($row) {
-                $status = $row->status instanceof PartStatus ? $row->status : PartStatus::tryFrom((string) $row->status);
+                $status = PartStatus::tryFrom((string) $row->status);
 
                 return ['label' => $status?->label() ?? (string) $row->status, 'color' => $status?->color() ?? 'gray', 'total' => $row->total];
             });
 
         $byResponsible = (clone $baseQuery)
             ->join('responsible_people', 'responsible_people.id', '=', 'assets.current_responsible_id')
+            ->toBase()
             ->select('responsible_people.full_name', DB::raw('count(*) as total'))
             ->groupBy('responsible_people.full_name')
             ->orderByDesc('total')

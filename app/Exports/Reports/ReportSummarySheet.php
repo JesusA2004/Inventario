@@ -3,6 +3,7 @@
 namespace App\Exports\Reports;
 
 use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
@@ -12,7 +13,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
  * so the three outputs (pantalla, PDF, Excel) always carry the same
  * information even though this one is a plain table instead of a chart.
  */
-class ReportSummarySheet implements FromArray, WithTitle
+class ReportSummarySheet implements Export, FromArray, WithTitle
 {
     /**
      * @param  array<int, array{label: string, value: int|string}>  $kpis

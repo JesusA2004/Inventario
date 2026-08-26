@@ -5,6 +5,7 @@ namespace App\Http\Requests\Parts;
 use App\Enums\PartStatus;
 use App\Models\Asset;
 use App\Models\Branch;
+use App\Models\Part;
 use App\Models\ResponsiblePerson;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -13,9 +14,13 @@ use Illuminate\Validation\Rules\Enum;
 
 class PartRequest extends FormRequest
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
-        $partId = $this->route('part')?->id;
+        $routePart = $this->route('part');
+        $partId = $routePart instanceof Part ? $routePart->id : null;
 
         return [
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],

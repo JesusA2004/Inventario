@@ -30,7 +30,12 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { default: false });
 
-const physicalStatusOptions = ['Bueno', 'Regular', 'Dañado', 'Requiere mantenimiento'];
+const physicalStatusOptions = [
+    'Bueno',
+    'Regular',
+    'Dañado',
+    'Requiere mantenimiento',
+];
 
 const form = useForm({
     reviewed_at: new Date().toISOString().slice(0, 10),
@@ -53,7 +58,10 @@ function submit() {
         <DialogContent class="sm:max-w-sm">
             <DialogHeader>
                 <DialogTitle>Registrar revisión</DialogTitle>
-                <DialogDescription>Actualiza la fecha de última revisión del activo.</DialogDescription>
+                <DialogDescription
+                    >Actualiza la fecha de última revisión del
+                    activo.</DialogDescription
+                >
             </DialogHeader>
 
             <form class="space-y-4" @submit.prevent="submit">
@@ -65,24 +73,39 @@ function submit() {
                 <div class="grid gap-2">
                     <Label>Estado físico</Label>
                     <Select v-model="form.physical_status">
-                        <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger class="w-full"
+                            ><SelectValue
+                        /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem v-for="option in physicalStatusOptions" :key="option" :value="option">{{ option }}</SelectItem>
+                            <SelectItem
+                                v-for="option in physicalStatusOptions"
+                                :key="option"
+                                :value="option"
+                                >{{ option }}</SelectItem
+                            >
                         </SelectContent>
                     </Select>
                     <InputError :message="form.errors.physical_status" />
                 </div>
-                <div class="flex items-center justify-between rounded-lg border border-border p-3">
+                <div
+                    class="flex items-center justify-between rounded-lg border border-border p-3"
+                >
                     <p class="flex items-center gap-1.5 text-sm font-medium">
                         Ubicación correcta
-                        <HelpTip text="Desactívalo si al revisar el equipo notaste que está en una sucursal o área distinta a la registrada; después usa 'Cambiar ubicación' desde la ficha para corregirlo." />
+                        <HelpTip
+                            text="Desactívalo si al revisar el equipo notaste que está en una sucursal o área distinta a la registrada; después usa 'Cambiar ubicación' desde la ficha para corregirlo."
+                        />
                     </p>
                     <Switch v-model="form.location_ok" />
                 </div>
-                <div class="flex items-center justify-between rounded-lg border border-border p-3">
+                <div
+                    class="flex items-center justify-between rounded-lg border border-border p-3"
+                >
                     <p class="flex items-center gap-1.5 text-sm font-medium">
                         Responsable correcto
-                        <HelpTip text="Desactívalo si la persona registrada como responsable ya no es quien tiene el equipo; después usa 'Cambiar responsable' desde la ficha para corregirlo." />
+                        <HelpTip
+                            text="Desactívalo si la persona registrada como responsable ya no es quien tiene el equipo; después usa 'Cambiar responsable' desde la ficha para corregirlo."
+                        />
                     </p>
                     <Switch v-model="form.responsible_ok" />
                 </div>

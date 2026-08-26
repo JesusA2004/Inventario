@@ -169,7 +169,7 @@ class AuditController extends Controller implements HasMiddleware
                 'id' => $audit->id,
                 'name' => $audit->name,
                 'status' => ['value' => $audit->status->value, 'label' => $audit->status->label(), 'color' => $audit->status->color()],
-                'started_at' => $audit->started_at?->toISOString(),
+                'started_at' => $audit->started_at->toISOString(),
                 'finished_at' => $audit->finished_at?->toISOString(),
                 'company' => $audit->company?->name,
                 'branch' => $audit->branch?->name,

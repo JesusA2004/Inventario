@@ -46,7 +46,12 @@ type Loan = {
     loan_date: string;
     expected_return_date: string | null;
     actual_return_date: string | null;
-    asset: { id: number; public_id: string; internal_code: string; name: string } | null;
+    asset: {
+        id: number;
+        public_id: string;
+        internal_code: string;
+        name: string;
+    } | null;
     company: { id: number; name: string } | null;
     assignedTo: string | null;
     deliveredBy: string | null;
@@ -79,7 +84,8 @@ function applyFilters() {
         {
             q: search.value || undefined,
             status: status.value !== 'all' ? status.value : undefined,
-            company_id: companyFilter.value !== 'all' ? companyFilter.value : undefined,
+            company_id:
+                companyFilter.value !== 'all' ? companyFilter.value : undefined,
         },
         { preserveState: true, replace: true },
     );
@@ -97,14 +103,20 @@ function clearFilters() {
     applyFilters();
 }
 
-const activeFiltersCount = computed(() => [status.value, companyFilter.value].filter((v) => v !== 'all').length);
+const activeFiltersCount = computed(
+    () => [status.value, companyFilter.value].filter((v) => v !== 'all').length,
+);
 
 function formatDate(value: string | null): string {
     if (!value) {
-return '—';
-}
+        return '—';
+    }
 
-    return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
+    return new Intl.DateTimeFormat('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    }).format(new Date(`${value}T00:00:00`));
 }
 
 const returnDialogLoan = ref<Loan | null>(null);
@@ -121,8 +133,8 @@ function openReturnDialog(loan: Loan) {
 
 function submitReturn() {
     if (!returnDialogLoan.value) {
-return;
-}
+        return;
+    }
 
     returnForm.post(`/prestamos/${returnDialogLoan.value.id}/devolver`, {
         preserveScroll: true,
@@ -135,8 +147,8 @@ const cancelling = ref(false);
 
 function submitCancel() {
     if (!cancelDialogLoan.value) {
-return;
-}
+        return;
+    }
 
     cancelling.value = true;
     router.post(
@@ -173,8 +185,17 @@ return;
         </PageHeader>
 
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:w-96">
-            <StatCard title="Préstamos activos" :value="stats.active" :icon="UsersRound" />
-            <StatCard title="Préstamos vencidos" :value="stats.overdue" tone="destructive" :icon="UsersRound" />
+            <StatCard
+                title="Préstamos activos"
+                :value="stats.active"
+                :icon="UsersRound"
+            />
+            <StatCard
+                title="Préstamos vencidos"
+                :value="stats.overdue"
+                tone="destructive"
+                :icon="UsersRound"
+            />
         </div>
 
         <FilterBar
@@ -185,7 +206,9 @@ return;
             @clear="clearFilters"
         >
             <Select v-model="status" @update:model-value="applyFilters">
-                <SelectTrigger class="w-full lg:w-40"><SelectValue placeholder="Estatus" /></SelectTrigger>
+                <SelectTrigger class="w-full lg:w-40"
+                    ><SelectValue placeholder="Estatus"
+                /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Todos los estatus</SelectItem>
                     <SelectItem value="prestado">Prestado</SelectItem>
@@ -221,26 +244,62 @@ return;
         </EmptyState>
 
         <div v-else class="space-y-3">
-            <div v-for="loan in loans.data" :key="loan.id" class="rounded-xl border border-border bg-card p-4">
+            <div
+                v-for="loan in loans.data"
+                :key="loan.id"
+                class="rounded-xl border border-border bg-card p-4"
+            >
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <Link v-if="loan.asset?.public_id" :href="`/activos/${loan.asset.public_id}`" class="font-mono text-sm font-medium hover:underline">
+                        <Link
+                            v-if="loan.asset?.public_id"
+                            :href="`/activos/${loan.asset.public_id}`"
+                            class="font-mono text-sm font-medium hover:underline"
+                        >
                             {{ loan.asset.internal_code }}
                         </Link>
-                        <p v-else class="font-mono text-sm font-medium text-muted-foreground">Activo no disponible</p>
-                        <p v-if="loan.asset" class="text-sm text-muted-foreground">{{ loan.asset.name }}</p>
+                        <p
+                            v-else
+                            class="font-mono text-sm font-medium text-muted-foreground"
+                        >
+                            Activo no disponible
+                        </p>
+                        <p
+                            v-if="loan.asset"
+                            class="text-sm text-muted-foreground"
+                        >
+                            {{ loan.asset.name }}
+                        </p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <StatusBadge :label="loan.status.label" :color="loan.status.color" />
-                        <DropdownMenu v-if="loan.status.value === 'prestado' || loan.status.value === 'vencido'">
+                        <StatusBadge
+                            :label="loan.status.label"
+                            :color="loan.status.color"
+                        />
+                        <DropdownMenu
+                            v-if="
+                                loan.status.value === 'prestado' ||
+                                loan.status.value === 'vencido'
+                            "
+                        >
                             <DropdownMenuTrigger as-child>
-                                <Button variant="ghost" size="icon" class="size-8">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="size-8"
+                                >
                                     <MoreHorizontal class="size-4" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem @click="openReturnDialog(loan)">Registrar devolución</DropdownMenuItem>
-                                <DropdownMenuItem class="text-destructive focus:text-destructive" @click="cancelDialogLoan = loan">
+                                <DropdownMenuItem
+                                    @click="openReturnDialog(loan)"
+                                    >Registrar devolución</DropdownMenuItem
+                                >
+                                <DropdownMenuItem
+                                    class="text-destructive focus:text-destructive"
+                                    @click="cancelDialogLoan = loan"
+                                >
                                     Cancelar préstamo
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -257,41 +316,65 @@ return;
                         <p>{{ formatDate(loan.loan_date) }}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-muted-foreground">Devolución esperada</p>
+                        <p class="text-xs text-muted-foreground">
+                            Devolución esperada
+                        </p>
                         <p>{{ formatDate(loan.expected_return_date) }}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-muted-foreground">Devolución real</p>
+                        <p class="text-xs text-muted-foreground">
+                            Devolución real
+                        </p>
                         <p>{{ formatDate(loan.actual_return_date) }}</p>
                     </div>
                 </div>
-                <p v-if="loan.reason" class="mt-2 text-sm text-muted-foreground">{{ loan.reason }}</p>
+                <p
+                    v-if="loan.reason"
+                    class="mt-2 text-sm text-muted-foreground"
+                >
+                    {{ loan.reason }}
+                </p>
             </div>
 
             <div class="flex items-center justify-between">
-                <p class="text-sm text-muted-foreground">{{ loans.total }} préstamos</p>
+                <p class="text-sm text-muted-foreground">
+                    {{ loans.total }} préstamos
+                </p>
                 <Pager :links="loans.links" />
             </div>
         </div>
     </div>
 
-    <Dialog :open="!!returnDialogLoan" @update:open="(value) => !value && (returnDialogLoan = null)">
+    <Dialog
+        :open="!!returnDialogLoan"
+        @update:open="(value) => !value && (returnDialogLoan = null)"
+    >
         <DialogContent class="sm:max-w-sm">
             <DialogHeader>
                 <DialogTitle>Registrar devolución</DialogTitle>
                 <DialogDescription v-if="returnDialogLoan">
-                    Salió el {{ formatDate(returnDialogLoan.loan_date) }}. La fecha de devolución debe ser igual o posterior a esa fecha.
+                    Salió el {{ formatDate(returnDialogLoan.loan_date) }}. La
+                    fecha de devolución debe ser igual o posterior a esa fecha.
                 </DialogDescription>
             </DialogHeader>
             <form class="space-y-4" @submit.prevent="submitReturn">
                 <div class="grid gap-2">
                     <Label>Fecha de devolución</Label>
-                    <DatePicker v-model="returnForm.actual_return_date" from-today />
-                    <InputError :message="returnForm.errors.actual_return_date" />
+                    <DatePicker
+                        v-model="returnForm.actual_return_date"
+                        from-today
+                    />
+                    <InputError
+                        :message="returnForm.errors.actual_return_date"
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label for="return-notes">Observaciones (opcional)</Label>
-                    <Textarea id="return-notes" v-model="returnForm.return_notes" rows="2" />
+                    <Textarea
+                        id="return-notes"
+                        v-model="returnForm.return_notes"
+                        rows="2"
+                    />
                     <InputError :message="returnForm.errors.return_notes" />
                 </div>
                 <DialogFooter>

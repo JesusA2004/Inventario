@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Enums\AssetStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
 use Inertia\Inertia;
@@ -19,7 +18,10 @@ class PublicAssetController extends Controller
     {
         $asset->load(['company', 'branch', 'department', 'assetType', 'brand', 'currentResponsible']);
 
-        $status = $asset->status instanceof AssetStatus ? $asset->status : AssetStatus::tryFrom((string) $asset->status);
+        // El cast de Eloquent garantiza que $asset->status siempre es una
+        // instancia real de AssetStatus (o lanzaría al hidratar el modelo si
+        // el valor en base de datos no coincidiera con ningún caso).
+        $status = $asset->status;
 
         return Inertia::render('public/AssetShow', [
             'asset' => [
@@ -27,7 +29,7 @@ class PublicAssetController extends Controller
                 'name' => $asset->name,
                 'model' => $asset->model,
                 'serial_number' => $asset->serial_number,
-                'status' => $status ? ['label' => $status->label(), 'color' => $status->color()] : null,
+                'status' => ['label' => $status->label(), 'color' => $status->color()],
                 'in_inventory' => (bool) $asset->in_inventory,
                 'company_name' => $asset->company?->name,
                 'branch_name' => $asset->branch?->name,

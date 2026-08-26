@@ -6,6 +6,9 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class ResponsiblePersonRequest extends FormRequest
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [

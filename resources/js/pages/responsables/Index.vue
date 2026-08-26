@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { MoreHorizontal, Plus, Users } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
@@ -276,9 +276,12 @@ function destroy() {
                         :key="responsible.id"
                     >
                         <TableCell>
-                            <p class="font-medium text-foreground">
+                            <Link
+                                :href="`/responsables/${responsible.id}`"
+                                class="font-medium text-foreground hover:underline"
+                            >
                                 {{ responsible.full_name }}
-                            </p>
+                            </Link>
                             <p
                                 v-if="responsible.position"
                                 class="text-xs text-muted-foreground"

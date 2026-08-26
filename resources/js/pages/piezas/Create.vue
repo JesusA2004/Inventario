@@ -49,11 +49,16 @@ function submit() {
     <Head title="Nueva pieza" />
 
     <div class="flex w-full flex-col gap-6 pb-24">
-        <PageHeader title="Nueva pieza" description="Registra una pieza o refacción en el inventario" />
+        <PageHeader
+            title="Nueva pieza"
+            description="Registra una pieza o refacción en el inventario"
+        />
         <PartForm :form="form" :form-options="formOptions" />
     </div>
 
-    <div class="sticky bottom-0 -mx-4 flex justify-end border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-t-xl sm:border sm:px-6">
+    <div
+        class="sticky bottom-0 -mx-4 flex justify-end border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-t-xl sm:border sm:px-6"
+    >
         <Button type="button" :disabled="form.processing" @click="submit">
             <Spinner v-if="form.processing" class="mr-1" />
             Guardar pieza

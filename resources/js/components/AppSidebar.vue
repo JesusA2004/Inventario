@@ -6,6 +6,7 @@ import {
     Building2,
     ClipboardCheck,
     FileBarChart,
+    FileSignature,
     HelpCircle,
     Landmark,
     LayoutGrid,
@@ -70,8 +71,13 @@ const navGroups: NavGroup[] = [
         title: 'Control',
         items: [
             { title: 'Auditorías', href: '/auditorias', icon: ClipboardCheck },
+            { title: 'Responsivas', href: '/responsivas', icon: FileSignature },
             { title: 'Escanear QR', href: '/escanear', icon: ScanLine },
-            { title: 'Movimientos', href: '/movimientos', icon: ArrowLeftRight },
+            {
+                title: 'Movimientos',
+                href: '/movimientos',
+                icon: ArrowLeftRight,
+            },
             { title: 'Reportes', href: '/reportes', icon: FileBarChart },
         ],
     },

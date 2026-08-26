@@ -27,7 +27,7 @@ class LoanResource extends JsonResource
                 'color' => $isOverdue ? 'red' : $this->status->color(),
             ],
             'reason' => $this->reason,
-            'loan_date' => $this->loan_date?->toDateString(),
+            'loan_date' => $this->loan_date->toDateString(),
             'expected_return_date' => $this->expected_return_date?->toDateString(),
             'actual_return_date' => $this->actual_return_date?->toDateString(),
             'delivered_confirmed' => (bool) $this->delivered_confirmed,

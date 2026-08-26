@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PartStatus;
+use Database\Factories\PartFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,7 @@ use Illuminate\Support\Str;
 
 class Part extends Model
 {
+    /** @use HasFactory<PartFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -56,26 +58,41 @@ class Part extends Model
         });
     }
 
+    /**
+     * @return BelongsTo<Company, $this>
+     */
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
     }
 
+    /**
+     * @return BelongsTo<Branch, $this>
+     */
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
     }
 
+    /**
+     * @return BelongsTo<Asset, $this>
+     */
     public function relatedAsset(): BelongsTo
     {
         return $this->belongsTo(Asset::class, 'related_asset_id');
     }
 
+    /**
+     * @return BelongsTo<Brand, $this>
+     */
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
     }
 
+    /**
+     * @return BelongsTo<ResponsiblePerson, $this>
+     */
     public function responsible(): BelongsTo
     {
         return $this->belongsTo(ResponsiblePerson::class, 'responsible_id');

@@ -53,7 +53,10 @@ async function loadResults(query: string) {
     searching.value = true;
 
     try {
-        results.value = await getJson<AssetOption[]>('/activos/buscar', { q: query || undefined, in_inventory_only: 1 });
+        results.value = await getJson<AssetOption[]>('/activos/buscar', {
+            q: query || undefined,
+            in_inventory_only: 1,
+        });
     } finally {
         searching.value = false;
     }
@@ -71,7 +74,9 @@ onMounted(() => {
 });
 
 async function loadResponsibles(companyId: number) {
-    responsibles.value = await getJson<ResponsibleOption[]>(`/prestamos/empresas/${companyId}/responsables`);
+    responsibles.value = await getJson<ResponsibleOption[]>(
+        `/prestamos/empresas/${companyId}/responsables`,
+    );
 }
 
 function selectAsset(asset: AssetOption) {
@@ -105,8 +110,8 @@ const form = useForm({
 
 function submit() {
     if (!selectedAsset.value) {
-return;
-}
+        return;
+    }
 
     form.asset_id = selectedAsset.value.id;
     form.transform((data) => ({ ...data, origin: 'index' })).post('/prestamos');
@@ -126,31 +131,58 @@ return;
         <div class="space-y-2">
             <Label>Activo</Label>
             <p v-if="!selectedAsset" class="text-xs text-muted-foreground">
-                Busca y selecciona primero el equipo que se va a prestar: con eso el sistema carga los responsables de su empresa para elegir a quién se
-                asigna, quién entrega y quién recibe.
+                Busca y selecciona primero el equipo que se va a prestar: con
+                eso el sistema carga los responsables de su empresa para elegir
+                a quién se asigna, quién entrega y quién recibe.
             </p>
-            <div v-if="selectedAsset" class="flex items-center justify-between rounded-lg border border-border bg-card p-3">
+            <div
+                v-if="selectedAsset"
+                class="flex items-center justify-between rounded-lg border border-border bg-card p-3"
+            >
                 <div>
-                    <p class="font-mono text-sm font-medium">{{ selectedAsset.internal_code }}</p>
-                    <p class="text-sm text-muted-foreground">{{ selectedAsset.name }}</p>
+                    <p class="font-mono text-sm font-medium">
+                        {{ selectedAsset.internal_code }}
+                    </p>
+                    <p class="text-sm text-muted-foreground">
+                        {{ selectedAsset.name }}
+                    </p>
                 </div>
-                <Button type="button" variant="ghost" size="icon" @click="clearAsset">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    @click="clearAsset"
+                >
                     <X class="size-4" />
                 </Button>
             </div>
             <div v-else class="space-y-3">
                 <div class="relative">
-                    <Search class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input v-model="search" placeholder="Buscar por clave o nombre del dispositivo..." class="pl-8" />
+                    <Search
+                        class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Input
+                        v-model="search"
+                        placeholder="Buscar por clave o nombre del dispositivo..."
+                        class="pl-8"
+                    />
                 </div>
 
-                <p v-if="searching" class="text-xs text-muted-foreground">Buscando...</p>
+                <p v-if="searching" class="text-xs text-muted-foreground">
+                    Buscando...
+                </p>
 
-                <div v-else-if="results.length === 0" class="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                <div
+                    v-else-if="results.length === 0"
+                    class="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
+                >
                     No hay activos disponibles que coincidan con la búsqueda.
                 </div>
 
-                <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                <div
+                    v-else
+                    class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+                >
                     <button
                         v-for="asset in results"
                         :key="asset.id"
@@ -158,7 +190,9 @@ return;
                         class="flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
                         @click="selectAsset(asset)"
                     >
-                        <div class="relative aspect-square w-full overflow-hidden bg-muted">
+                        <div
+                            class="relative aspect-square w-full overflow-hidden bg-muted"
+                        >
                             <img
                                 v-if="asset.photo_url"
                                 :src="asset.photo_url"
@@ -166,15 +200,29 @@ return;
                                 loading="lazy"
                                 class="size-full object-cover"
                             />
-                            <div v-else class="flex size-full flex-col items-center justify-center gap-1 text-muted-foreground/60">
+                            <div
+                                v-else
+                                class="flex size-full flex-col items-center justify-center gap-1 text-muted-foreground/60"
+                            >
                                 <ImageOff class="size-6" />
                                 <span class="text-[10px]">Sin foto</span>
                             </div>
                         </div>
                         <div class="flex flex-col gap-0.5 p-2.5">
-                            <p class="truncate text-sm font-medium text-foreground">{{ asset.name }}</p>
-                            <p class="font-mono text-xs text-muted-foreground">{{ asset.internal_code }}</p>
-                            <p v-if="asset.asset_type" class="truncate text-xs text-muted-foreground">{{ asset.asset_type }}</p>
+                            <p
+                                class="truncate text-sm font-medium text-foreground"
+                            >
+                                {{ asset.name }}
+                            </p>
+                            <p class="font-mono text-xs text-muted-foreground">
+                                {{ asset.internal_code }}
+                            </p>
+                            <p
+                                v-if="asset.asset_type"
+                                class="truncate text-xs text-muted-foreground"
+                            >
+                                {{ asset.asset_type }}
+                            </p>
                         </div>
                     </button>
                 </div>
@@ -188,28 +236,49 @@ return;
                     <Label>Asignado a</Label>
                     <Combobox
                         v-model="form.assigned_to_responsible_id"
-                        :options="responsibles.map((r) => ({ value: r.id, label: r.full_name }))"
+                        :options="
+                            responsibles.map((r) => ({
+                                value: r.id,
+                                label: r.full_name,
+                            }))
+                        "
                         placeholder="Selecciona un responsable"
                     />
-                    <InputError :message="form.errors.assigned_to_responsible_id" />
+                    <InputError
+                        :message="form.errors.assigned_to_responsible_id"
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label>Entregó</Label>
                     <Combobox
                         v-model="form.delivered_by_responsible_id"
-                        :options="responsibles.map((r) => ({ value: r.id, label: r.full_name }))"
+                        :options="
+                            responsibles.map((r) => ({
+                                value: r.id,
+                                label: r.full_name,
+                            }))
+                        "
                         placeholder="Opcional"
                     />
-                    <InputError :message="form.errors.delivered_by_responsible_id" />
+                    <InputError
+                        :message="form.errors.delivered_by_responsible_id"
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label>Recibió</Label>
                     <Combobox
                         v-model="form.received_by_responsible_id"
-                        :options="responsibles.map((r) => ({ value: r.id, label: r.full_name }))"
+                        :options="
+                            responsibles.map((r) => ({
+                                value: r.id,
+                                label: r.full_name,
+                            }))
+                        "
                         placeholder="Opcional"
                     />
-                    <InputError :message="form.errors.received_by_responsible_id" />
+                    <InputError
+                        :message="form.errors.received_by_responsible_id"
+                    />
                 </div>
             </div>
             <div class="grid gap-4 sm:grid-cols-2">
@@ -221,9 +290,14 @@ return;
                 <div class="grid gap-2">
                     <Label>
                         Devolución esperada (opcional)
-                        <HelpTip text="Debe ser igual o posterior a la fecha de salida. Déjala vacía si todavía no sabes cuándo regresará el equipo." />
+                        <HelpTip
+                            text="Debe ser igual o posterior a la fecha de salida. Déjala vacía si todavía no sabes cuándo regresará el equipo."
+                        />
                     </Label>
-                    <DatePicker v-model="form.expected_return_date" from-today />
+                    <DatePicker
+                        v-model="form.expected_return_date"
+                        from-today
+                    />
                     <InputError :message="form.errors.expected_return_date" />
                 </div>
             </div>
@@ -233,17 +307,25 @@ return;
                 <InputError :message="form.errors.reason" />
             </div>
             <div class="grid gap-3 sm:grid-cols-2">
-                <div class="flex items-center justify-between rounded-lg border border-border p-3">
+                <div
+                    class="flex items-center justify-between rounded-lg border border-border p-3"
+                >
                     <p class="flex items-center gap-1.5 text-sm font-medium">
                         Confirmó quien entrega
-                        <HelpTip text="Marca esto cuando la persona que entrega el equipo ya confirmó los datos del préstamo (a quién, con qué condiciones). Desactívalo si el registro se hizo sin su confirmación directa." />
+                        <HelpTip
+                            text="Marca esto cuando la persona que entrega el equipo ya confirmó los datos del préstamo (a quién, con qué condiciones). Desactívalo si el registro se hizo sin su confirmación directa."
+                        />
                     </p>
                     <Switch v-model="form.delivered_confirmed" />
                 </div>
-                <div class="flex items-center justify-between rounded-lg border border-border p-3">
+                <div
+                    class="flex items-center justify-between rounded-lg border border-border p-3"
+                >
                     <p class="flex items-center gap-1.5 text-sm font-medium">
                         Confirmó quien recibe
-                        <HelpTip text="Marca esto cuando la persona que recibe el equipo ya confirmó que lo está recibiendo en las condiciones descritas." />
+                        <HelpTip
+                            text="Marca esto cuando la persona que recibe el equipo ya confirmó que lo está recibiendo en las condiciones descritas."
+                        />
                     </p>
                     <Switch v-model="form.received_confirmed" />
                 </div>

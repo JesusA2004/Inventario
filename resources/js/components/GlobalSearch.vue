@@ -12,7 +12,12 @@ import {
 } from '@/components/ui/command';
 import { getJson } from '@/lib/http';
 
-type AssetResult = { public_id: string; internal_code: string; name: string; subtitle: string };
+type AssetResult = {
+    public_id: string;
+    internal_code: string;
+    name: string;
+    subtitle: string;
+};
 type ResponsibleResult = { id: number; full_name: string };
 
 const open = ref(false);
@@ -42,7 +47,10 @@ watch(query, (value) => {
     }
 
     debounceTimer = setTimeout(async () => {
-        const result = await getJson<{ assets: AssetResult[]; responsiblePeople: ResponsibleResult[] }>('/buscar', { q: value });
+        const result = await getJson<{
+            assets: AssetResult[];
+            responsiblePeople: ResponsibleResult[];
+        }>('/buscar', { q: value });
         assets.value = result.assets;
         responsiblePeople.value = result.responsiblePeople;
     }, 250);
@@ -67,23 +75,47 @@ function goToResponsible(id: number) {
     >
         <Search class="size-4" />
         <span class="hidden sm:inline">Buscar activo...</span>
-        <kbd class="ml-4 hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline">Ctrl K</kbd>
+        <kbd
+            class="ml-4 hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline"
+            >Ctrl K</kbd
+        >
     </button>
 
-    <CommandDialog v-model:open="open" title="Búsqueda global" description="Busca activos o responsables">
-        <CommandInput v-model="query" placeholder="Buscar por clave, dispositivo, serie, marca o responsable..." />
+    <CommandDialog
+        v-model:open="open"
+        title="Búsqueda global"
+        description="Busca activos o responsables"
+    >
+        <CommandInput
+            v-model="query"
+            placeholder="Buscar por clave, dispositivo, serie, marca o responsable..."
+        />
         <CommandList>
-            <CommandEmpty v-if="query.length >= 2">Sin resultados.</CommandEmpty>
+            <CommandEmpty v-if="query.length >= 2"
+                >Sin resultados.</CommandEmpty
+            >
             <CommandGroup v-if="assets.length > 0" heading="Activos">
-                <CommandItem v-for="asset in assets" :key="asset.public_id" :value="asset.internal_code" @select="() => goToAsset(asset.public_id)">
+                <CommandItem
+                    v-for="asset in assets"
+                    :key="asset.public_id"
+                    :value="asset.internal_code"
+                    @select="() => goToAsset(asset.public_id)"
+                >
                     <Boxes class="mr-2 size-4 text-muted-foreground" />
                     <div class="flex flex-col">
-                        <span class="font-mono text-sm">{{ asset.internal_code }}</span>
-                        <span class="text-xs text-muted-foreground">{{ asset.name }} · {{ asset.subtitle }}</span>
+                        <span class="font-mono text-sm">{{
+                            asset.internal_code
+                        }}</span>
+                        <span class="text-xs text-muted-foreground"
+                            >{{ asset.name }} · {{ asset.subtitle }}</span
+                        >
                     </div>
                 </CommandItem>
             </CommandGroup>
-            <CommandGroup v-if="responsiblePeople.length > 0" heading="Responsables">
+            <CommandGroup
+                v-if="responsiblePeople.length > 0"
+                heading="Responsables"
+            >
                 <CommandItem
                     v-for="person in responsiblePeople"
                     :key="person.id"

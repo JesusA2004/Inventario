@@ -213,39 +213,42 @@ class ReportController extends Controller implements HasMiddleware
                 'title' => 'Préstamos por estatus',
                 'items' => $this->loansQuery($request)
                     ->reorder()
+                    ->toBase()
                     ->select('status', DB::raw('count(*) as total'))
                     ->groupBy('status')
                     ->orderByDesc('total')
                     ->get()
                     ->map(fn ($row) => [
-                        'label' => ($row->status instanceof LoanStatus ? $row->status : LoanStatus::tryFrom((string) $row->status))?->label() ?? (string) $row->status,
-                        'total' => (int) $row->getAttribute('total'),
+                        'label' => LoanStatus::tryFrom((string) $row->status)?->label() ?? (string) $row->status,
+                        'total' => (int) $row->total,
                     ]),
             ],
             'piezas' => [
                 'title' => 'Piezas por estatus',
                 'items' => $this->partsQuery($request)
                     ->reorder()
+                    ->toBase()
                     ->select('status', DB::raw('count(*) as total'))
                     ->groupBy('status')
                     ->orderByDesc('total')
                     ->get()
                     ->map(fn ($row) => [
-                        'label' => ($row->status instanceof PartStatus ? $row->status : PartStatus::tryFrom((string) $row->status))?->label() ?? (string) $row->status,
-                        'total' => (int) $row->getAttribute('total'),
+                        'label' => PartStatus::tryFrom((string) $row->status)?->label() ?? (string) $row->status,
+                        'total' => (int) $row->total,
                     ]),
             ],
             'auditorias' => [
                 'title' => 'Auditorías por estatus',
                 'items' => $this->auditsQuery($request)
                     ->reorder()
+                    ->toBase()
                     ->select('status', DB::raw('count(*) as total'))
                     ->groupBy('status')
                     ->orderByDesc('total')
                     ->get()
                     ->map(fn ($row) => [
-                        'label' => ($row->status instanceof AuditStatus ? $row->status : AuditStatus::tryFrom((string) $row->status))?->label() ?? (string) $row->status,
-                        'total' => (int) $row->getAttribute('total'),
+                        'label' => AuditStatus::tryFrom((string) $row->status)?->label() ?? (string) $row->status,
+                        'total' => (int) $row->total,
                     ]),
             ],
             default => null,
@@ -362,22 +365,37 @@ class ReportController extends Controller implements HasMiddleware
     }
 
     /**
-     * @return array{byStatus: Collection, byBranch: Collection, byType: Collection, byCompany: Collection}
+     * byBranch/byType/byCompany son filas planas (stdClass) de una consulta
+     * de agregados vía ->toBase(): solo traen name/total, no un modelo
+     * completo.
+     *
+     * @return array{
+     *     byStatus: Collection<int, array{label: string, color: string, total: int}>,
+     *     byBranch: Collection<int, \stdClass>,
+     *     byType: Collection<int, \stdClass>,
+     *     byCompany: Collection<int, \stdClass>,
+     * }
      */
     private function inventoryCharts(Request $request): array
     {
+        // ->toBase(): estas consultas solo agregan (COUNT + GROUP BY), no
+        // hidratan activos completos; sin esto Eloquent intenta tratar cada
+        // fila como un Asset real, cuando en realidad solo trae la(s)
+        // columna(s) de agrupación + el total.
         $byStatus = $this->inventoryBaseQuery($request)
+            ->toBase()
             ->select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->get()
-            ->map(function (Asset $row): array {
-                $status = $row->status instanceof AssetStatus ? $row->status : AssetStatus::tryFrom((string) $row->status);
+            ->map(function ($row): array {
+                $status = AssetStatus::tryFrom((string) $row->status);
 
-                return ['label' => $status?->label() ?? (string) $row->status, 'color' => $status?->color() ?? 'gray', 'total' => (int) $row->getAttribute('total')];
+                return ['label' => $status?->label() ?? (string) $row->status, 'color' => $status?->color() ?? 'gray', 'total' => (int) $row->total];
             });
 
         $byBranch = $this->inventoryBaseQuery($request)
             ->join('branches', 'branches.id', '=', 'assets.branch_id')
+            ->toBase()
             ->select('branches.name', DB::raw('count(*) as total'))
             ->groupBy('branches.name')
             ->orderByDesc('total')
@@ -386,6 +404,7 @@ class ReportController extends Controller implements HasMiddleware
 
         $byType = $this->inventoryBaseQuery($request)
             ->join('asset_types', 'asset_types.id', '=', 'assets.asset_type_id')
+            ->toBase()
             ->select('asset_types.name', DB::raw('count(*) as total'))
             ->groupBy('asset_types.name')
             ->orderByDesc('total')
@@ -394,6 +413,7 @@ class ReportController extends Controller implements HasMiddleware
 
         $byCompany = $this->inventoryBaseQuery($request)
             ->join('companies', 'companies.id', '=', 'assets.company_id')
+            ->toBase()
             ->select('companies.name', DB::raw('count(*) as total'))
             ->groupBy('companies.name')
             ->orderByDesc('total')
@@ -413,7 +433,7 @@ class ReportController extends Controller implements HasMiddleware
     }
 
     /**
-     * @return array{bajas: array, prestamos: array, piezas: array, auditorias: array}
+     * @return array{bajas: array<string, mixed>, prestamos: array<string, mixed>, piezas: array<string, mixed>, auditorias: array<string, mixed>}
      */
     private function buildSummary(Request $request): array
     {

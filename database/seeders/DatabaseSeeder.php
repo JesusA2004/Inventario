@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
             AssetTypesSeeder::class,
             ResponsiblePeopleSeeder::class,
             MrInsightAssetsSeeder::class,
+            ResponsibilityTemplateSeeder::class,
+            PrivacyNoticeSeeder::class,
         ]);
     }
 }

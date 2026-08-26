@@ -14,7 +14,12 @@ export type LabelSizePreset = {
 
 export type LabelSizesConfig = {
     presets: Record<'small' | 'medium' | 'large', LabelSizePreset>;
-    bounds: { minWidth: number; maxWidth: number; minHeight: number; maxHeight: number };
+    bounds: {
+        minWidth: number;
+        maxWidth: number;
+        minHeight: number;
+        maxHeight: number;
+    };
     maxWidthByColumns: Record<string, number>;
 };
 
@@ -28,9 +33,23 @@ export function resolveDimensions(
     customHeight: number,
 ): { width: number; height: number; qr: number } {
     if (size === 'custom') {
-        const width = clamp(customWidth, config.bounds.minWidth, config.bounds.maxWidth);
-        const height = clamp(customHeight, config.bounds.minHeight, config.bounds.maxHeight);
-        const qr = Math.max(14, Math.min(Math.min(width, height) * 0.55, Math.min(width, height) - 10));
+        const width = clamp(
+            customWidth,
+            config.bounds.minWidth,
+            config.bounds.maxWidth,
+        );
+        const height = clamp(
+            customHeight,
+            config.bounds.minHeight,
+            config.bounds.maxHeight,
+        );
+        const qr = Math.max(
+            14,
+            Math.min(
+                Math.min(width, height) * 0.55,
+                Math.min(width, height) - 10,
+            ),
+        );
 
         return { width, height, qr: Math.round(qr * 10) / 10 };
     }
@@ -40,11 +59,21 @@ export function resolveDimensions(
     return { width: preset.width, height: preset.height, qr: preset.qr };
 }
 
-export function maxWidthForColumns(config: LabelSizesConfig, columns: LabelColumns): number {
-    return config.maxWidthByColumns[String(columns)] ?? config.maxWidthByColumns['2'];
+export function maxWidthForColumns(
+    config: LabelSizesConfig,
+    columns: LabelColumns,
+): number {
+    return (
+        config.maxWidthByColumns[String(columns)] ??
+        config.maxWidthByColumns['2']
+    );
 }
 
-export function fitsColumns(config: LabelSizesConfig, width: number, columns: LabelColumns): boolean {
+export function fitsColumns(
+    config: LabelSizesConfig,
+    width: number,
+    columns: LabelColumns,
+): boolean {
     return width <= maxWidthForColumns(config, columns);
 }
 
